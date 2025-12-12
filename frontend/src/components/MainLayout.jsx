@@ -34,7 +34,11 @@ import {
     PushPin,
     PushPinOutlined,
     AccountCircle,
-    People
+    People,
+    Notifications,
+    Person,
+    ManageAccounts,
+    NotificationsNone
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -290,47 +294,8 @@ const MainLayout = () => {
             {/* Footer */}
             {isExpanded && (
                 <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                    {/* Configurações Button */}
-                    <ListItem disablePadding sx={{ px: 2, py: 1 }}>
-                        <ListItemButton
-                            selected={location.pathname === '/configuracoes'}
-                            onClick={() => {
-                                navigate('/configuracoes');
-                                setMobileOpen(false);
-                            }}
-                            sx={{
-                                borderRadius: 2,
-                                py: 1.5,
-                                transition: 'all 0.2s ease',
-                                '&.Mui-selected': {
-                                    background: 'linear-gradient(135deg, rgba(192, 72, 72, 0.2) 0%, rgba(217, 164, 65, 0.2) 100%)',
-                                    borderLeft: '3px solid #D9A441',
-                                    '&:hover': {
-                                        background: 'linear-gradient(135deg, rgba(192, 72, 72, 0.3) 0%, rgba(217, 164, 65, 0.3) 100%)',
-                                    }
-                                },
-                                '&:hover': {
-                                    backgroundColor: alpha('#ffffff', 0.05),
-                                }
-                            }}
-                        >
-                            <ListItemIcon sx={{
-                                color: location.pathname === '/configuracoes' ? '#D9A441' : 'text.secondary',
-                                minWidth: 40
-                            }}>
-                                <Settings />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary="Configurações"
-                                primaryTypographyProps={{
-                                    fontWeight: location.pathname === '/configuracoes' ? 600 : 400,
-                                }}
-                            />
-                        </ListItemButton>
-                    </ListItem>
-
                     {/* Copyright Info */}
-                    <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <Box sx={{ p: 2 }}>
                         <Typography variant="caption" color="text.secondary" display="block">
                             © 2025 UDE
                         </Typography>
@@ -365,45 +330,161 @@ const MainLayout = () => {
                     <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
                         Sistema de Apontamento de Maquinários Viana e Moura
                     </Typography>
+
+                    {/* Theme Toggle */}
                     <IconButton onClick={toggleTheme} sx={{ mr: 1, color: 'inherit' }}>
                         {mode === 'dark' ? <LightMode /> : <DarkMode />}
                     </IconButton>
-                    <IconButton onClick={handleMenuOpen} sx={{ p: 0 }}>
+
+                    {/* Notifications Bell */}
+                    <IconButton sx={{ mr: 2, color: 'inherit' }}>
+                        <NotificationsNone />
+                    </IconButton>
+
+                    {/* User Profile Menu */}
+                    <Box
+                        onClick={handleMenuOpen}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            cursor: 'pointer',
+                            p: 1,
+                            borderRadius: 2,
+                            transition: 'background 0.2s',
+                            '&:hover': {
+                                bgcolor: alpha('#ffffff', 0.08)
+                            }
+                        }}
+                    >
                         <Avatar
                             sx={{
                                 bgcolor: 'secondary.main',
                                 color: '#000',
                                 fontWeight: 600,
+                                width: 40,
+                                height: 40
                             }}
                         >
                             {user?.name?.charAt(0) || 'U'}
                         </Avatar>
-                    </IconButton>
+                        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                            <Typography variant="subtitle2" fontWeight="600" sx={{ lineHeight: 1.2 }}>
+                                {user?.name || 'Usuário'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                                {user?.role || 'Função'}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    {/* User Menu Dropdown */}
                     <Menu
                         anchorEl={anchorEl}
                         open={Boolean(anchorEl)}
                         onClose={handleMenuClose}
-                        onClick={handleMenuClose}
                         PaperProps={{
                             sx: {
-                                mt: 1,
-                                minWidth: 200,
+                                mt: 1.5,
+                                minWidth: 280,
+                                bgcolor: '#1a1a1a',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 2,
                             }
                         }}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                     >
-                        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                            <Typography variant="subtitle2" fontWeight="bold">
-                                {user?.name || 'Usuário'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {user?.email || ''}
-                            </Typography>
+                        {/* User Info Header */}
+                        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <Box display="flex" alignItems="center" gap={1.5}>
+                                <Avatar
+                                    sx={{
+                                        bgcolor: 'secondary.main',
+                                        color: '#000',
+                                        fontWeight: 600,
+                                        width: 45,
+                                        height: 45
+                                    }}
+                                >
+                                    {user?.name?.charAt(0) || 'U'}
+                                </Avatar>
+                                <Box>
+                                    <Typography variant="subtitle1" fontWeight="700">
+                                        {user?.name || 'Usuário'}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                        {user?.email || ''}
+                                    </Typography>
+                                </Box>
+                            </Box>
                         </Box>
-                        <MenuItem onClick={handleLogout} sx={{ mt: 1 }}>
+
+                        {/* Menu Options */}
+                        <Box sx={{ py: 1 }}>
+                            <MenuItem
+                                onClick={handleMenuClose}
+                                sx={{
+                                    py: 1.5,
+                                    px: 2.5,
+                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
+                                }}
+                            >
+                                <ListItemIcon>
+                                    <Person fontSize="small" sx={{ color: '#D9A441' }} />
+                                </ListItemIcon>
+                                <Typography variant="body2">Seu Perfil</Typography>
+                            </MenuItem>
+
+                            <MenuItem
+                                onClick={handleMenuClose}
+                                sx={{
+                                    py: 1.5,
+                                    px: 2.5,
+                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
+                                }}
+                            >
+                                <ListItemIcon>
+                                    <ManageAccounts fontSize="small" sx={{ color: '#D9A441' }} />
+                                </ListItemIcon>
+                                <Box>
+                                    <Typography variant="body2">Sua Conta</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Permissão: {user?.role || 'Não definido'}
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+
+                            <MenuItem
+                                onClick={handleMenuClose}
+                                sx={{
+                                    py: 1.5,
+                                    px: 2.5,
+                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
+                                }}
+                            >
+                                <ListItemIcon>
+                                    <Notifications fontSize="small" sx={{ color: '#D9A441' }} />
+                                </ListItemIcon>
+                                <Typography variant="body2">Notificações</Typography>
+                            </MenuItem>
+                        </Box>
+
+                        {/* Logout */}
+                        <Divider sx={{ my: 0.5, opacity: 0.1 }} />
+                        <MenuItem
+                            onClick={handleLogout}
+                            sx={{
+                                py: 1.5,
+                                px: 2.5,
+                                color: '#ff5252',
+                                '&:hover': { bgcolor: alpha('#ff5252', 0.1) }
+                            }}
+                        >
                             <ListItemIcon>
-                                <Logout fontSize="small" />
+                                <Logout fontSize="small" sx={{ color: '#ff5252' }} />
                             </ListItemIcon>
-                            Sair do Sistema
+                            <Typography variant="body2">Log out</Typography>
                         </MenuItem>
                     </Menu>
                 </Toolbar>
