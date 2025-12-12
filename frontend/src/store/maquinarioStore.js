@@ -70,7 +70,7 @@ const useMaquinarioStore = create(
             })),
         }),
         {
-            name: 'maquinarios-storage-v3', // Versioned storage
+            name: 'maquinarios-storage-v4', // Versioned storage - bumped to fix modal state
         }
     )
 );
