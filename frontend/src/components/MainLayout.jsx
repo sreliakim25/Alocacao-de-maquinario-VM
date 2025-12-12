@@ -372,46 +372,9 @@ const MainLayout = () => {
                     </IconButton>
 
                     {/* Notifications Bell */}
-                    <IconButton sx={{ mr: 2, color: 'inherit' }}>
+                    <IconButton sx={{ color: 'inherit' }}>
                         <NotificationsNone />
                     </IconButton>
-
-                    {/* User Profile Menu */}
-                    <Box
-                        onClick={handleMenuOpen}
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1.5,
-                            cursor: 'pointer',
-                            p: 1,
-                            borderRadius: 2,
-                            transition: 'background 0.2s',
-                            '&:hover': {
-                                bgcolor: alpha('#ffffff', 0.08)
-                            }
-                        }}
-                    >
-                        <Avatar
-                            sx={{
-                                bgcolor: 'secondary.main',
-                                color: '#000',
-                                fontWeight: 600,
-                                width: 40,
-                                height: 40
-                            }}
-                        >
-                            {user?.name?.charAt(0) || 'U'}
-                        </Avatar>
-                        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                            <Typography variant="subtitle2" fontWeight="600" sx={{ lineHeight: 1.2 }}>
-                                {user?.name || 'Usuário'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                                {user?.role || 'Função'}
-                            </Typography>
-                        </Box>
-                    </Box>
 
                     {/* User Menu Dropdown */}
                     <Menu
@@ -458,7 +421,10 @@ const MainLayout = () => {
                         {/* Menu Options */}
                         <Box sx={{ py: 1 }}>
                             <MenuItem
-                                onClick={handleMenuClose}
+                                onClick={() => {
+                                    handleMenuClose();
+                                    navigate('/configuracoes');
+                                }}
                                 sx={{
                                     py: 1.5,
                                     px: 2.5,
