@@ -33,7 +33,8 @@ import {
     ChevronRight,
     PushPin,
     PushPinOutlined,
-    AccountCircle
+    AccountCircle,
+    People
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -53,7 +54,7 @@ const MainLayout = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout, isDevelopmentBypass } = useAuthStore();
+    const { user, logout, isDevelopmentBypass, hasPermission } = useAuthStore();
     const { mode, toggleTheme } = useThemeStore();
 
     const menuItems = [
@@ -62,6 +63,11 @@ const MainLayout = () => {
         { text: 'Apontamentos', icon: <ListIcon />, path: '/lista-apontamentos' },
         { text: 'Maquinários', icon: <Construction />, path: '/cadastros' },
     ];
+
+    // Menu de administração (apenas para Gerente ou superior)
+    const adminMenuItems = hasPermission('Gerente') ? [
+        { text: 'Gerenciar Usuários', icon: <People />, path: '/user-management' },
+    ] : [];
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -219,6 +225,61 @@ const MainLayout = () => {
                         </ListItem>
                     );
                 })}
+
+                {/* Admin Menu Items */}
+                {adminMenuItems.length > 0 && (
+                    <>
+                        <Divider sx={{ my: 1, opacity: 0.3 }} />
+                        {adminMenuItems.map((item) => {
+                            const isSelected = location.pathname === item.path;
+                            return (
+                                <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                                    <Tooltip title={!isExpanded ? item.text : ""} placement="right">
+                                        <ListItemButton
+                                            selected={isSelected}
+                                            onClick={() => {
+                                                navigate(item.path);
+                                                setMobileOpen(false);
+                                            }}
+                                            sx={{
+                                                borderRadius: 2,
+                                                py: 1.5,
+                                                justifyContent: isExpanded ? 'flex-start' : 'center',
+                                                transition: 'all 0.2s ease',
+                                                '&.Mui-selected': {
+                                                    background: 'linear-gradient(135deg, rgba(192, 72, 72, 0.2) 0%, rgba(217, 164, 65, 0.2) 100%)',
+                                                    borderLeft: isExpanded ? '3px solid #D9A441' : 'none',
+                                                    '&:hover': {
+                                                        background: 'linear-gradient(135deg, rgba(192, 72, 72, 0.3) 0%, rgba(217, 164, 65, 0.3) 100%)',
+                                                    }
+                                                },
+                                                '&:hover': {
+                                                    backgroundColor: alpha('#ffffff', 0.05),
+                                                }
+                                            }}
+                                        >
+                                            <ListItemIcon sx={{
+                                                color: isSelected ? '#D9A441' : 'text.secondary',
+                                                minWidth: isExpanded ? 40 : 0,
+                                                justifyContent: 'center'
+                                            }}>
+                                                {item.icon}
+                                            </ListItemIcon>
+                                            {isExpanded && (
+                                                <ListItemText
+                                                    primary={item.text}
+                                                    primaryTypographyProps={{
+                                                        fontWeight: isSelected ? 600 : 400,
+                                                    }}
+                                                />
+                                            )}
+                                        </ListItemButton>
+                                    </Tooltip>
+                                </ListItem>
+                            );
+                        })}
+                    </>
+                )}
             </List>
 
             {/* Footer */}

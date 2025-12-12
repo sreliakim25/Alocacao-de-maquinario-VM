@@ -8,9 +8,12 @@ import {
     Stack,
     Alert,
     Paper,
-    alpha
+    alpha,
+    Link,
+    CircularProgress
 } from '@mui/material';
 import { LoginOutlined, DeveloperMode, Construction } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import logo from '../assets/logo.png';
 import constructionBg from '../assets/construction-bg.jpg';
@@ -18,21 +21,23 @@ import constructionBg from '../assets/construction-bg.jpg';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loginBypass, isDevelopmentBypass } = useAuthStore();
+    const navigate = useNavigate();
+    const { login, loginBypass, isDevelopmentBypass, error, loading, clearError } = useAuthStore();
     const isDevelopment = import.meta.env.DEV;
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        login({
-            id: '1',
-            name: 'Usuário Teste',
-            email: email,
-            role: 'admin'
-        });
+        clearError();
+
+        const success = await login(email, password);
+        if (success) {
+            navigate('/');
+        }
     };
 
     const handleBypass = () => {
         loginBypass();
+        navigate('/');
     };
 
     return (
@@ -131,6 +136,13 @@ const Login = () => {
                             </Alert>
                         )}
 
+                        {/* Mensagem de erro */}
+                        {error && (
+                            <Alert severity="error" onClose={clearError}>
+                                {error}
+                            </Alert>
+                        )}
+
                         {/* Formulário */}
                         <form onSubmit={handleLogin}>
                             <Stack spacing={3}>
@@ -143,6 +155,7 @@ const Login = () => {
                                     required
                                     autoFocus
                                     variant="outlined"
+                                    disabled={loading}
                                 />
                                 <TextField
                                     fullWidth
@@ -152,20 +165,62 @@ const Login = () => {
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                     variant="outlined"
+                                    disabled={loading}
                                 />
+
+                                {/* Link Esqueci Senha */}
+                                <Box sx={{ textAlign: 'right', mt: -1 }}>
+                                    <Link
+                                        onClick={() => navigate('/forgot-password')}
+                                        sx={{
+                                            color: 'primary.main',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem',
+                                            textDecoration: 'none',
+                                            '&:hover': {
+                                                textDecoration: 'underline',
+                                            }
+                                        }}
+                                    >
+                                        Esqueci minha senha
+                                    </Link>
+                                </Box>
+
                                 <Button
                                     type="submit"
                                     variant="contained"
                                     size="large"
                                     fullWidth
-                                    startIcon={<LoginOutlined />}
+                                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginOutlined />}
+                                    disabled={loading}
                                     sx={{
                                         py: 1.5,
                                         fontSize: '1rem',
                                     }}
                                 >
-                                    Entrar no Sistema
+                                    {loading ? 'Entrando...' : 'Entrar no Sistema'}
                                 </Button>
+
+                                {/* Link para Cadastro */}
+                                <Box sx={{ textAlign: 'center', pt: 1 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Não tem uma conta?{' '}
+                                        <Link
+                                            onClick={() => navigate('/register')}
+                                            sx={{
+                                                color: 'primary.main',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                textDecoration: 'none',
+                                                '&:hover': {
+                                                    textDecoration: 'underline',
+                                                }
+                                            }}
+                                        >
+                                            Cadastre-se aqui
+                                        </Link>
+                                    </Typography>
+                                </Box>
                             </Stack>
                         </form>
 
