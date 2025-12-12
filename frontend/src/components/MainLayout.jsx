@@ -41,6 +41,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import useThemeStore from '../store/themeStore';
 import logo from '../assets/logo.png';
+import excavatorIcon from '../assets/excavator-icon.png';
 
 const drawerWidth = 260;
 const collapsedDrawerWidth = 70;
@@ -61,7 +62,11 @@ const MainLayout = () => {
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
         { text: 'Novo Apontamento', icon: <Assignment />, path: '/apontamento' },
         { text: 'Apontamentos', icon: <ListIcon />, path: '/lista-apontamentos' },
-        { text: 'Maquinários', icon: <Construction />, path: '/cadastros' },
+        {
+            text: 'Maquinários',
+            icon: <Box component="img" src={excavatorIcon} sx={{ width: 24, height: 24, filter: 'invert(0.7)' }} />,
+            path: '/cadastros'
+        },
     ];
 
     // Menu de administração (apenas para Gerente ou superior)
