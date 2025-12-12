@@ -294,8 +294,43 @@ const MainLayout = () => {
             {/* Footer */}
             {isExpanded && (
                 <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    {/* User Profile Section */}
+                    <Box
+                        onClick={handleMenuOpen}
+                        sx={{
+                            p: 2,
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                            '&:hover': {
+                                bgcolor: alpha('#ffffff', 0.05)
+                            }
+                        }}
+                    >
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                            <Avatar
+                                sx={{
+                                    bgcolor: 'secondary.main',
+                                    color: '#000',
+                                    fontWeight: 600,
+                                    width: 45,
+                                    height: 45
+                                }}
+                            >
+                                {user?.name?.charAt(0) || 'U'}
+                            </Avatar>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="subtitle2" fontWeight="700" sx={{ lineHeight: 1.2 }}>
+                                    {user?.name || 'Usuário'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                    {user?.email || ''}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Box>
+
                     {/* Copyright Info */}
-                    <Box sx={{ p: 2 }}>
+                    <Box sx={{ px: 2, pb: 2, borderTop: '1px solid rgba(255,255,255,0.08)', pt: 2 }}>
                         <Typography variant="caption" color="text.secondary" display="block">
                             © 2025 UDE
                         </Typography>
