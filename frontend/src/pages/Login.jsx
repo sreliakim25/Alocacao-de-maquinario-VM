@@ -224,34 +224,46 @@ const Login = () => {
                             </Stack>
                         </form>
 
-                        {/* Bypass de Desenvolvimento */}
+                        {/* Botão de Acesso Demo - Sempre Visível */}
+                        <Box sx={{ pt: 2, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                            <Button
+                                variant="outlined"
+                                color="info"
+                                size="large"
+                                fullWidth
+                                onClick={handleBypass}
+                                sx={{
+                                    py: 1.5,
+                                    borderWidth: 2,
+                                    '&:hover': {
+                                        borderWidth: 2,
+                                        backgroundColor: alpha('#2196f3', 0.1),
+                                    }
+                                }}
+                            >
+                                🚀 Acesso Demo - Explorar Sistema
+                            </Button>
+                            <Typography
+                                variant="caption"
+                                display="block"
+                                textAlign="center"
+                                sx={{ mt: 1.5 }}
+                                color="text.secondary"
+                            >
+                                Acesso rápido para conhecer a ferramenta
+                            </Typography>
+                        </Box>
+
+                        {/* Bypass de Desenvolvimento (apenas dev) */}
                         {isDevelopment && (
                             <Box sx={{ pt: 2, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                                <Button
-                                    variant="outlined"
-                                    color="secondary"
-                                    size="large"
-                                    fullWidth
-                                    startIcon={<DeveloperMode />}
-                                    onClick={handleBypass}
-                                    sx={{
-                                        py: 1.5,
-                                        borderWidth: 2,
-                                        '&:hover': {
-                                            borderWidth: 2,
-                                        }
-                                    }}
-                                >
-                                    Bypass - Modo Desenvolvimento
-                                </Button>
                                 <Typography
                                     variant="caption"
                                     display="block"
                                     textAlign="center"
-                                    sx={{ mt: 1.5 }}
                                     color="text.secondary"
                                 >
-                                    ⚡ Este botão só aparece em ambiente de desenvolvimento
+                                    ⚡ Modo Desenvolvimento Ativo
                                 </Typography>
                             </Box>
                         )}
