@@ -6,7 +6,7 @@ let mockUsers = [
     {
         id: '1',
         name: 'Admin Sistema',
-        email: 'admin@vianae moura.com',
+        email: 'admin@vianaemoura.com',
         password: 'admin123', // Em produção, seria hash
         role: 'Desenvolvedor',
         ativo: true,
@@ -16,7 +16,7 @@ let mockUsers = [
     {
         id: '2',
         name: 'João Silva',
-        email: 'joao@vianae moura.com',
+        email: 'joao@vianaemoura.com',
         password: 'senha123',
         role: 'Gerente',
         ativo: true,
