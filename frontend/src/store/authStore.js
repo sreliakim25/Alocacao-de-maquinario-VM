@@ -1,29 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-// Mock de usuários para desenvolvimento (simula banco de dados)
-let mockUsers = [
-    {
-        id: '1',
-        name: 'Admin Sistema',
-        email: 'admin@vianaemoura.com',
-        password: 'admin123', // Em produção, seria hash
-        role: 'Desenvolvedor',
-        ativo: true,
-        telefone: '(11) 98765-4321',
-        criado_em: new Date().toISOString(),
-    },
-    {
-        id: '2',
-        name: 'João Silva',
-        email: 'joao@vianaemoura.com',
-        password: 'senha123',
-        role: 'Gerente',
-        ativo: true,
-        telefone: '(11) 91234-5678',
-        criado_em: new Date().toISOString(),
-    },
-];
+import { authAPI } from '../services/api';
 
 const useAuthStore = create(
     persist(
@@ -34,119 +11,107 @@ const useAuthStore = create(
             error: null,
             loading: false,
 
-            // Login com email e senha
+            // Login com email e senha (API REAL)
             login: async (email, password) => {
                 set({ loading: true, error: null });
 
-                // Simular delay de rede
-                await new Promise(resolve => setTimeout(resolve, 800));
+                try {
+                    const data = await authAPI.login(email, password);
 
-                // Buscar usuário mock
-                const user = mockUsers.find(u => u.email === email && u.password === password);
-
-                if (user) {
-                    if (!user.ativo) {
-                        set({
-                            loading: false,
-                            error: 'Usuário inativo. Entre em contato com o administrador.'
-                        });
-                        return false;
-                    }
-
-                    const { password: _, ...userWithoutPassword } = user;
                     set({
-                        user: userWithoutPassword,
+                        user: data.user,
                         isAuthenticated: true,
                         isDevelopmentBypass: false,
                         loading: false,
-                        error: null
+                        error: null,
                     });
+
                     return true;
-                } else {
+
+                } catch (error) {
                     set({
                         loading: false,
-                        error: 'Email ou senha incorretos'
+                        error: error.message || 'Erro ao fazer login',
                     });
                     return false;
                 }
             },
 
-            // Registro de novo usuário
+            // Registrar novo usuário (API REAL)
             register: async (userData) => {
                 set({ loading: true, error: null });
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                try {
+                    await authAPI.register({
+                        nome: userData.name,
+                        email: userData.email,
+                        senha: userData.password,
+                        telefone: userData.telefone,
+                    });
 
-                // Verificar se email já existe
-                const emailExists = mockUsers.some(u => u.email === userData.email);
-                if (emailExists) {
                     set({
                         loading: false,
-                        error: 'Este email já está cadastrado'
+                        error: null,
+                    });
+
+                    return true;
+
+                } catch (error) {
+                    set({
+                        loading: false,
+                        error: error.message || 'Erro ao registrar',
                     });
                     return false;
                 }
-
-                // Criar novo usuário (inativo por padrão, aguardando aprovação)
-                const newUser = {
-                    id: String(mockUsers.length + 1),
-                    name: userData.name,
-                    email: userData.email,
-                    password: userData.password, // Em produção, hash com bcrypt
-                    telefone: userData.telefone || '',
-                    role: 'Apontador', // Permissão padrão
-                    ativo: false, // Inativo até admin aprovar
-                    criado_em: new Date().toISOString(),
-                };
-
-                mockUsers.push(newUser);
-                console.log('✅ Novo usuário cadastrado (aguardando aprovação):', newUser);
-
-                set({ loading: false, error: null });
-                return true;
             },
 
             // Solicitar recuperação de senha
             requestPasswordReset: async (email) => {
                 set({ loading: true, error: null });
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                try {
+                    await authAPI.forgotPassword(email);
 
-                const user = mockUsers.find(u => u.email === email);
+                    set({
+                        loading: false,
+                        error: null,
+                    });
 
-                if (user) {
-                    // Gerar token mock
-                    const resetToken = Math.random().toString(36).substring(7);
-                    console.log('📧 Email de recuperação enviado para:', email);
-                    console.log('🔑 Token de recuperação (mock):', resetToken);
-                    console.log('🔗 Link de reset:', `http://localhost:3005/reset-password/${resetToken}`);
+                    return true;
 
-                    set({ loading: false, error: null });
-                    return { success: true, token: resetToken }; // Em produção, só retornaria success
-                } else {
-                    // Por segurança, não informar que email não existe
-                    console.log('⚠️ Email não encontrado, mas retornando sucesso por segurança');
-                    set({ loading: false, error: null });
-                    return { success: true };
+                } catch (error) {
+                    set({
+                        loading: false,
+                        error: error.message || 'Erro ao solicitar recuperação',
+                    });
+                    return false;
                 }
             },
 
-            // Redefinir senha com token
+            // Resetar senha
             resetPassword: async (token, newPassword) => {
                 set({ loading: true, error: null });
 
-                await new Promise(resolve => setTimeout(resolve, 800));
+                try {
+                    await authAPI.resetPassword(token, newPassword);
 
-                // Em produção, verificaria token no banco de dados
-                // Por ora, apenas simular sucesso
-                console.log('✅ Senha redefinida com sucesso (mock)');
-                console.log('Token usado:', token);
+                    set({
+                        loading: false,
+                        error: null,
+                    });
 
-                set({ loading: false, error: null });
-                return true;
+                    return true;
+
+                } catch (error) {
+                    set({
+                        loading: false,
+                        error: error.message || 'Erro ao resetar senha',
+                    });
+                    return false;
+                }
             },
 
-            // Bypass de desenvolvimento
+            // Login bypass para desenvolvimento
             loginBypass: () => set({
                 user: {
                     id: 'dev-bypass',
@@ -155,19 +120,21 @@ const useAuthStore = create(
                     role: 'Desenvolvedor'
                 },
                 isAuthenticated: true,
-                isDevelopmentBypass: true,
-                error: null
+                isDevelopmentBypass: true
             }),
 
             // Logout
-            logout: () => set({
-                user: null,
-                isAuthenticated: false,
-                isDevelopmentBypass: false,
-                error: null
-            }),
+            logout: () => {
+                authAPI.logout();
+                set({
+                    user: null,
+                    isAuthenticated: false,
+                    isDevelopmentBypass: false,
+                    error: null,
+                });
+            },
 
-            // Verificar se usuário tem permissão
+            // Verificar permissão baseada em role
             hasPermission: (requiredRole) => {
                 const { user } = get();
                 if (!user) return false;
@@ -178,7 +145,7 @@ const useAuthStore = create(
                     'Líder': 5,
                     'Supervisor': 4,
                     'Suprimentos': 3,
-                    'Apontador': 2,
+                    'Apontador': 2
                 };
 
                 const userLevel = roleHierarchy[user.role] || 0;
@@ -186,21 +153,11 @@ const useAuthStore = create(
 
                 return userLevel >= requiredLevel;
             },
-
-            // Limpar erro
-            clearError: () => set({ error: null }),
-
-            // Obter todos os usuários (para gerenciamento)
-            getAllUsers: () => mockUsers.map(({ password, ...user }) => user),
         }),
         {
             name: 'auth-storage',
         }
     )
 );
-
-// Exportar função para acessar mockUsers (para userStore)
-export const getMockUsers = () => mockUsers;
-export const setMockUsers = (users) => { mockUsers = users; };
 
 export default useAuthStore;

@@ -1,76 +1,92 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-// Mock data updated with new schema - Operador is now a string
-const initialMaquinarios = [
-    {
-        id: '1',
-        nome: 'Retro-05',
-        tipo: 'Retroescavadeira',
-        fornecedor: 'Locadora A',
-        placa: 'ABC-1234',
-        operador: 'Carlos Silva',
-        setor: 'UDE',
-        foto: null,
-        dataUltimoChecklist: '2024-12-01',
-        proximoChecklist: '2024-12-15',
-        periodicidadeChecklist: 14 // dias
-    },
-    {
-        id: '2',
-        nome: 'PC-01',
-        tipo: 'Pá Carregadeira',
-        fornecedor: 'Locadora B',
-        placa: 'XYZ-5678',
-        operador: 'João Santos',
-        setor: 'Infraestrutura',
-        foto: null,
-        dataUltimoChecklist: '2024-12-05',
-        proximoChecklist: '2025-01-05',
-        periodicidadeChecklist: 30
-    },
-    {
-        id: '3',
-        nome: 'Pipa-02',
-        tipo: 'Caminhão Pipa',
-        fornecedor: 'Locadora A',
-        placa: 'DEF-9012',
-        operador: 'Maria Oliveira',
-        setor: 'UDE',
-        foto: null,
-        dataUltimoChecklist: '2024-11-20',
-        proximoChecklist: '2024-12-05', // Vencido
-        periodicidadeChecklist: 15
-    },
-];
+import { maquinasAPI } from '../services/api';
 
 const useMaquinarioStore = create(
     persist(
-        (set) => ({
-            maquinarios: initialMaquinarios,
+        (set, get) => ({
+            maquinarios: [],
+            loading: false,
+            error: null,
 
-            addMaquinario: (maquinario) => set((state) => ({
-                maquinarios: [
-                    {
-                        id: Math.random().toString(36).substr(2, 9),
-                        ...maquinario
-                    },
-                    ...state.maquinarios
-                ]
-            })),
+            // Buscar todas as máquinas do backend
+            fetchMaquinarios: async () => {
+                set({ loading: true, error: null });
+                try {
+                    const maquinarios = await maquinasAPI.getAll();
+                    set({ maquinarios, loading: false });
+                } catch (error) {
+                    set({ error: error.message, loading: false });
+                }
+            },
 
-            removeMaquinario: (id) => set((state) => ({
-                maquinarios: state.maquinarios.filter((m) => m.id !== id)
-            })),
+            // Adicionar nova máquina
+            addMaquinario: async (maquinario) => {
+                set({ loading: true, error: null });
+                try {
+                    const result = await maquinasAPI.create(maquinario);
 
-            updateMaquinario: (id, updatedData) => set((state) => ({
-                maquinarios: state.maquinarios.map((m) =>
-                    m.id === id ? { ...m, ...updatedData } : m
-                )
-            })),
+                    // Atualizar lista local
+                    const newMaquinario = {
+                        id: result.id,
+                        ...maquinario,
+                        ativo: 1,
+                        criado_em: new Date().toISOString()
+                    };
+
+                    set(state => ({
+                        maquinarios: [newMaquinario, ...state.maquinarios],
+                        loading: false
+                    }));
+
+                    return result.id;
+                } catch (error) {
+                    set({ error: error.message, loading: false });
+                    throw error;
+                }
+            },
+
+            // Atualizar máquina
+            updateMaquinario: async (id, updatedData) => {
+                set({ loading: true, error: null });
+                try {
+                    await maquinasAPI.update(id, updatedData);
+
+                    // Atualizar lista local
+                    set(state => ({
+                        maquinarios: state.maquinarios.map(m =>
+                            m.id === id ? { ...m, ...updatedData } : m
+                        ),
+                        loading: false
+                    }));
+                } catch (error) {
+                    set({ error: error.message, loading: false });
+                    throw error;
+                }
+            },
+
+            // Remover máquina (soft delete)
+            removeMaquinario: async (id) => {
+                set({ loading: true, error: null });
+                try {
+                    await maquinasAPI.delete(id);
+
+                    // Remover da lista local ou marcar como inativo
+                    set(state => ({
+                        maquinarios: state.maquinarios.filter(m => m.id !== id),
+                        loading: false
+                    }));
+                } catch (error) {
+                    set({ error: error.message, loading: false });
+                    throw error;
+                }
+            },
+
+            // Limpar erros
+            clearError: () => set({ error: null }),
         }),
         {
-            name: 'maquinarios-storage-v4', // Versioned storage - bumped to fix modal state
+            name: 'maquinarios-storage-v5', // Versioned storage
         }
     )
 );
