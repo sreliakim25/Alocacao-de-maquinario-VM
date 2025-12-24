@@ -34,7 +34,7 @@ import {
     Fingerprint,
     Work
 } from '@mui/icons-material';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useMaquinarioStore from '../store/maquinarioStore';
 
@@ -49,11 +49,16 @@ const Setores = ['UDE', 'Infraestrutura'];
 
 const Cadastros = () => {
     const navigate = useNavigate();
-    const { maquinarios, addMaquinario, removeMaquinario, updateMaquinario } = useMaquinarioStore();
+    const { maquinarios, addMaquinario, removeMaquinario, updateMaquinario, fetchMaquinarios, loading } = useMaquinarioStore();
 
     const [open, setOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const fileInputRef = useRef(null);
+
+    // Buscar máquinas do backend ao carregar componente
+    useEffect(() => {
+        fetchMaquinarios();
+    }, [fetchMaquinarios]);
 
     const [formData, setFormData] = useState({
         nome: '',
@@ -106,14 +111,19 @@ const Cadastros = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editingId) {
-            updateMaquinario(editingId, formData);
-        } else {
-            addMaquinario(formData);
+        try {
+            if (editingId) {
+                await updateMaquinario(editingId, formData);
+            } else {
+                await addMaquinario(formData);
+            }
+            handleClose();
+        } catch (error) {
+            console.error('Erro ao salvar máquina:', error);
+            // Pode adicionar um toast/snackbar aqui
         }
-        handleClose();
     };
 
     return (
