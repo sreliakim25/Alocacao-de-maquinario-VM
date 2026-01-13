@@ -71,6 +71,7 @@ const MainLayout = () => {
             icon: <Box component="img" src={excavatorIcon} sx={{ width: 24, height: 24, filter: 'invert(0.7)' }} />,
             path: '/cadastros'
         },
+        { text: 'Cadastros', icon: <Construction />, path: '/cadastros-gerais' },
     ];
 
     // Menu de administração (apenas para Gerente ou superior)

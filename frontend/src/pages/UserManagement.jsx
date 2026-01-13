@@ -41,9 +41,11 @@ import useAuthStore from '../store/authStore';
 const USER_ROLES = [
     'Apontador',
     'Supervisor',
-    'Líder',
+    'Lider', // Normalized to match DB seed
+    'Líder', // Keep for compatibility if needed
     'Suprimentos',
     'Gerente',
+    'Administrador', // Added Admin
     'Desenvolvedor'
 ];
 
@@ -103,7 +105,7 @@ const UserManagement = () => {
         return colors[role] || 'default';
     };
 
-    const filteredUsers = users.filter(user => {
+    const filteredUsers = (users || []).filter(user => {
         const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'all' ||
@@ -112,7 +114,7 @@ const UserManagement = () => {
         return matchesSearch && matchesStatus;
     });
 
-    const pendingUsers = users.filter(u => !u.ativo);
+    const pendingUsers = (users || []).filter(u => !u.ativo);
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -211,7 +213,9 @@ const UserManagement = () => {
                                                 />
                                             </TableCell>
                                             <TableCell>
-                                                {format(new Date(user.criado_em), 'dd/MM/yyyy')}
+                                                {user.criado_em && !isNaN(new Date(user.criado_em).getTime())
+                                                    ? format(new Date(user.criado_em), 'dd/MM/yyyy')
+                                                    : '-'}
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Tooltip title="Editar Permissões">

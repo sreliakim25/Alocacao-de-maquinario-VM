@@ -1,127 +1,165 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { apontamentosAPI } from '../services/api';
 
-// Dados fictícios iniciais atualizados para o novo fluxo
-const initialApontamentos = [
-    {
-        id: '1',
-        data: '2024-12-09',
-        maquina: 'Retroescavadeira R-01',
-        operador: 'João Silva',
-        vila: 'Vila A',
-        status: 'liberado_apontador', // Aguardando Supervisor
-        totalHoras: 8,
-        periodo: 'Manhã',
-        inicio: '07:00',
-        fim: '11:00',
-        observacao: 'Serviço concluído sem paradas',
-        apontadorId: 'user-123',
-        apontadorNome: 'Mestre Obra 01',
-        ultimaPendencia: '',
-        dataCriacao: '2024-12-09T07:00:00'
-    },
-    {
-        id: '2',
-        data: '2024-12-09',
-        maquina: 'Pá Carregadeira P-03',
-        operador: 'Maria Santos',
-        vila: 'Vila B',
-        status: 'pendente_supervisor', // Retornou do Supervisor
-        totalHoras: 4,
-        periodo: 'Tarde',
-        inicio: '13:00',
-        fim: '17:00',
-        observacao: 'Aguardando liberação da área',
-        apontadorId: 'user-123',
-        apontadorNome: 'Mestre Obra 01',
-        ultimaPendencia: 'Supervisor: Verificar hora extra não autorizada.',
-        dataCriacao: '2024-12-09T13:00:00'
-    },
-    {
-        id: '3',
-        data: '2024-12-08',
-        maquina: 'Caminhão Pipa C-05',
-        operador: 'Carlos Souza',
-        vila: 'Vila C',
-        status: 'em_apontamento', // Ainda em edição
-        totalHoras: 6,
-        periodo: 'Manhã',
-        inicio: '07:00',
-        fim: '13:00',
-        observacao: 'Abastecimento de água',
-        apontadorId: 'user-456',
-        apontadorNome: 'Apontador Geral',
-        ultimaPendencia: '',
-        dataCriacao: '2024-12-08T07:00:00'
-    }
-];
+const useApontamentoStore = create((set, get) => ({
+    apontamentos: [],
+    loading: false,
+    error: null,
 
-const useApontamentoStore = create(
-    persist(
-        (set) => ({
-            apontamentos: initialApontamentos,
+    // Fetch and flatten
+    fetchApontamentos: async () => {
+        set({ loading: true, error: null });
+        try {
+            const data = await apontamentosAPI.getAll();
 
-            addApontamento: (apontamento, user) => set((state) => ({
-                apontamentos: [
-                    {
-                        id: Math.random().toString(36).substr(2, 9),
-                        status: 'em_apontamento', // Status inicial padrão
-                        apontadorId: user?.id || 'anon',
-                        apontadorNome: user?.name || 'Desconhecido',
-                        ultimaPendencia: '',
-                        ...apontamento
-                    },
-                    ...state.apontamentos
-                ]
-            })),
+            // Flatten Header+Lines to unique Items for List View
+            const flattened = data.flatMap(header => {
+                if (!header.linhas || header.linhas.length === 0) return [];
 
-            updateStatus: (id, newStatus, pendenciaObs = '') => set((state) => ({
-                apontamentos: state.apontamentos.map(apt =>
-                    apt.id === id ? {
-                        ...apt,
-                        status: newStatus,
-                        ultimaPendencia: pendenciaObs ? pendenciaObs : apt.ultimaPendencia
-                    } : apt
-                )
-            })),
+                return header.linhas.map(line => ({
+                    // IDs
+                    id: line.id, // Line ID (Unique for List key)
+                    apontamentoId: header.id, // Header ID (For grouping/editing)
 
-            updateStatusBatch: (ids, newStatus) => set((state) => {
-                const idSet = new Set(ids);
-                return {
-                    apontamentos: state.apontamentos.map(apt =>
-                        idSet.has(apt.id) ? { ...apt, status: newStatus } : apt
-                    )
-                };
-            }),
+                    // Header Info
+                    data: header.data_apontamento ? header.data_apontamento.split('T')[0] : '',
+                    maquina: header.maquina_nome || '', // Name for display
+                    maquinaId: header.maquina_id, // ID for edit
+                    operador: header.operador,
+                    apontadorId: header.apontador_id, // Assuming snake_case from DB
+                    status: header.status,
 
-            updateApontamento: (id, updatedData) => set((state) => ({
-                apontamentos: state.apontamentos.map(apt =>
-                    apt.id === id ? { ...apt, ...updatedData } : apt
-                )
-            })),
+                    // Line Info (IDs for Edit, Names for Display)
+                    inicio: line.inicio,
+                    fim: line.fim,
+                    observacao: line.observacao,
+                    totalHoras: line.horas_trabalhadas,
 
-            syncApontamentosBatch: (originalContext, newItems) => set((state) => {
-                // 1. Remove items matching the ORIGINAL context
-                const remaining = state.apontamentos.filter(apt =>
-                    !(apt.data === originalContext.data &&
-                        apt.maquina === originalContext.maquina &&
-                        apt.apontadorId === originalContext.apontadorId)
-                );
+                    vila: line.vila_id,
+                    vilaNome: line.vila_nome,
 
-                // 2. Add the new items
-                return {
-                    apontamentos: [...remaining, ...newItems]
-                };
-            }),
+                    // Detalhes Map
+                    detalhes: {
+                        etapa: line.etapa_id,
+                        etapaNome: line.etapa_nome,
 
-            deleteApontamento: (id) => set((state) => ({
-                apontamentos: state.apontamentos.filter(apt => apt.id !== id)
-            })),
-        }),
-        {
-            name: 'apontamentos-storage',
+                        subEtapa: line.sub_etapa_id,
+                        subEtapaNome: line.tarefa_nome, // backend tarefa = frontend subEtapa
+
+                        conta: line.conta_id,
+                        contaNome: line.ugb_nome,
+
+                        supervisor: line.supervisor // Name
+                    }
+                }));
+            });
+
+            set({ apontamentos: flattened, loading: false });
+        } catch (error) {
+            console.error('Erro ao buscar apontamentos:', error);
+            set({ error: error.message, loading: false });
         }
-    )
-);
+    },
+
+    // Not usually called directly by UI anymore, but kept for compatibility
+    addApontamento: async (apontamento) => {
+        // Implementation omitted as UI uses syncApontamentosBatch
+    },
+
+    updateStatus: async (id, status) => {
+        set({ loading: true });
+        try {
+            // ID here could be Line ID or Header ID.
+            // ListaApontamentos usually passes Line ID?
+            // Wait, ListaApontamentos calls `handleStatusUpdate` passing `selectedIds`.
+            // selectedIds are Line IDs.
+            // We need to find the Header ID for this Line ID.
+            const state = get();
+            const item = state.apontamentos.find(a => a.id === id);
+            if (!item) throw new Error('Item não encontrado');
+
+            await apontamentosAPI.updateStatus(item.apontamentoId, status);
+
+            // Refetch to update UI
+            await get().fetchApontamentos();
+        } catch (error) {
+            set({ error: error.message, loading: false });
+        }
+    },
+
+    // Batch Update/Create logic from Apontamento.jsx
+    syncApontamentosBatch: async (originalContext, itemsToSave) => {
+        set({ loading: true, error: null });
+        try {
+            // 1. Identify Header ID
+            let apontamentoId = originalContext?.id;
+
+            // 2. Construct Payload
+            // itemsToSave contains Header info in every item. Take first.
+            const firstItem = itemsToSave[0];
+            if (!firstItem) return;
+
+            const payload = {
+                data_apontamento: firstItem.data_apontamento,
+                maquina_id: firstItem.maquina_id,
+                operador: firstItem.operador,
+                observacoes: firstItem.observacoes || '', // Header Obs
+                status: firstItem.status,
+
+                linhas: itemsToSave.map(item => ({
+                    vila_id: item.vila,
+                    etapa_id: item.etapa,
+                    sub_etapa_id: item.subEtapa, // Frontend uses camelCase 'subEtapa'
+                    conta_id: item.conta,
+                    sub_conta_id: item.subConta || null, // Assuming subConta might exist? In Apontamento.jsx initialRow doesn't have it explicitly shown but likely
+                    supervisor: item.supervisor,
+                    inicio: item.inicio,
+                    fim: item.fim,
+                    observacao: item.observacao
+                }))
+            };
+
+            // 3. Create or Update
+            if (apontamentoId) {
+                await apontamentosAPI.update(apontamentoId, payload);
+            } else {
+                await apontamentosAPI.create(payload);
+            }
+
+            // 4. Refresh List
+            await get().fetchApontamentos();
+
+        } catch (error) {
+            console.error('Erro ao salvar apontamento:', error);
+            set({ error: error.message, loading: false });
+            throw error;
+        }
+    },
+
+    deleteApontamento: async (id) => {
+        set({ loading: true });
+        try {
+            // ID is Line ID.
+            // But we delete the Whole Header?
+            // The UI usually says "Delete" on the list.
+            // If user deletes one line, should we delete just the line or the header?
+            // `routes/apontamentos.js` DELETE /:id deletes the Header (and cascades lines).
+            // `ListaApontamentos` "Delete" button... let's assume it deletes the whole Boletim if grouped?
+            // Actually `ListaApontamentos` allows selecting multiple rows.
+            // If we delete a line, we should probably have an API to delete a line.
+            // Current API only has DELETE /apontamentos/:id (Header).
+            // So we MUST Find Header ID and delete the whole thing.
+            const state = get();
+            const item = state.apontamentos.find(a => a.id === id);
+            if (!item) throw new Error('Item não encontrado');
+
+            await apontamentosAPI.delete(item.apontamentoId);
+
+            await get().fetchApontamentos();
+        } catch (error) {
+            set({ error: error.message, loading: false });
+        }
+    }
+}));
 
 export default useApontamentoStore;

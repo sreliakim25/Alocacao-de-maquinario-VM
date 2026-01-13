@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 const permissionMiddleware = require('../middleware/permissions');
 
 // GET /api/apontamentos - Listar apontamentos (com filtros)
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
         const { data_inicio, data_fim, maquina_id, status } = req.query;
 
@@ -16,34 +16,48 @@ router.get('/', authMiddleware, (req, res) => {
             WHERE 1=1
         `;
         const params = [];
+        let counter = 1;
 
         if (data_inicio) {
-            query += ' AND a.data_apontamento >= ?';
+            query += ` AND a.data_apontamento >= $${counter++}`;
             params.push(data_inicio);
         }
         if (data_fim) {
-            query += ' AND a.data_apontamento <= ?';
+            query += ` AND a.data_apontamento <= $${counter++}`;
             params.push(data_fim);
         }
         if (maquina_id) {
-            query += ' AND a.maquina_id = ?';
+            query += ` AND a.maquina_id = $${counter++}`;
             params.push(maquina_id);
         }
         if (status) {
-            query += ' AND a.status = ?';
+            query += ` AND a.status = $${counter++}`;
             params.push(status);
         }
 
         query += ' ORDER BY a.data_apontamento DESC, a.criado_em DESC';
 
-        const apontamentos = db.prepare(query).all(...params);
+        const result = await db.query(query, params);
+        const apontamentos = result.rows;
 
         // Buscar linhas de cada apontamento
-        apontamentos.forEach(apt => {
-            apt.linhas = db.prepare(`
-                SELECT * FROM apontamento_linhas WHERE apontamento_id = ?
-            `).all(apt.id);
-        });
+        for (const apt of apontamentos) {
+            const linesQuery = `
+                SELECT al.*, 
+                       v.nome as vila_nome, 
+                       se.nome as etapa_nome, 
+                       t.nome as tarefa_nome, 
+                       u.nome as ugb_nome
+                FROM apontamento_linhas al
+                LEFT JOIN vilas v ON al.vila_id = v.id
+                LEFT JOIN sub_etapas se ON al.etapa_id = se.id
+                LEFT JOIN tarefas t ON al.sub_etapa_id = t.id
+                LEFT JOIN ugbs u ON al.conta_id = u.id
+                WHERE al.apontamento_id = $1
+            `;
+            const linesResult = await db.query(linesQuery, [apt.id]);
+            apt.linhas = linesResult.rows;
+        }
 
         res.json(apontamentos);
 
@@ -54,25 +68,39 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 // GET /api/apontamentos/:id - Buscar apontamento por ID
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        const apontamento = db.prepare(`
+        const query = `
             SELECT a.*, m.nome as maquina_nome
             FROM apontamentos a
             LEFT JOIN maquinas m ON a.maquina_id = m.id
-            WHERE a.id = ?
-        `).get(id);
+            WHERE a.id = $1
+        `;
+        const result = await db.query(query, [id]);
+        const apontamento = result.rows[0];
 
         if (!apontamento) {
             return res.status(404).json({ error: 'Apontamento não encontrado' });
         }
 
         // Buscar linhas
-        apontamento.linhas = db.prepare(`
-            SELECT * FROM apontamento_linhas WHERE apontamento_id = ?
-        `).all(id);
+        const linesQuery = `
+            SELECT al.*, 
+                   v.nome as vila_nome, 
+                   se.nome as etapa_nome, 
+                   t.nome as tarefa_nome, 
+                   u.nome as ugb_nome
+            FROM apontamento_linhas al
+            LEFT JOIN vilas v ON al.vila_id = v.id
+            LEFT JOIN sub_etapas se ON al.etapa_id = se.id
+            LEFT JOIN tarefas t ON al.sub_etapa_id = t.id
+            LEFT JOIN ugbs u ON al.conta_id = u.id
+            WHERE al.apontamento_id = $1
+        `;
+        const linesResult = await db.query(linesQuery, [id]);
+        apontamento.linhas = linesResult.rows;
 
         res.json(apontamento);
 
@@ -83,7 +111,14 @@ router.get('/:id', authMiddleware, (req, res) => {
 });
 
 // POST /api/apontamentos - Criar novo apontamento
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
+    const fs = require('fs');
+    const logError = (msg, data) => {
+        const timestamp = new Date().toISOString();
+        const logContent = `[${timestamp}] ${msg}\nData: ${JSON.stringify(data, null, 2)}\n\n`;
+        fs.appendFileSync('backend_errors.log', logContent);
+    };
+
     try {
         const { data_apontamento, maquina_id, operador, observacoes, linhas } = req.body;
 
@@ -91,99 +126,146 @@ router.post('/', authMiddleware, (req, res) => {
             return res.status(400).json({ error: 'Dados obrigatórios faltando' });
         }
 
-        // Inserir apontamento
-        const insertApt = db.prepare(`
-            INSERT INTO apontamentos (data_apontamento, maquina_id, operador, apontador_id, status, observacoes)
-            VALUES (?, ?, ?, ?, 'em_apontamento', ?)
-        `);
+        // START TRANSACTION
+        await db.query('BEGIN');
 
-        const result = insertApt.run(data_apontamento, maquina_id, operador, req.userId, observacoes || null);
-        const apontamento_id = result.lastInsertRowid;
+        try {
+            // Inserir apontamento
+            const insertAptQuery = `
+                INSERT INTO apontamentos (data_apontamento, maquina_id, operador, apontador_id, status, observacoes)
+                VALUES ($1, $2, $3, $4, 'em_apontamento', $5)
+                RETURNING id
+            `;
 
-        // Inserir linhas
-        const insertLinha = db.prepare(`
-            INSERT INTO apontamento_linhas 
-            (apontamento_id, vila_id, etapa_id, sub_etapa_id, conta_id, sub_conta_id, supervisor, inicio, fim, horas_trabalhadas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+            const aptResult = await db.query(insertAptQuery, [data_apontamento, maquina_id, operador, req.userId, observacoes || null]);
+            const apontamento_id = aptResult.rows[0].id;
 
-        linhas.forEach(linha => {
-            const horas = calcularHoras(linha.inicio, linha.fim);
-            insertLinha.run(
-                apontamento_id,
-                linha.vila_id,
-                linha.etapa_id,
-                linha.sub_etapa_id || null,
-                linha.conta_id,
-                linha.sub_conta_id || null,
-                linha.supervisor || null,
-                linha.inicio,
-                linha.fim,
-                horas
-            );
-        });
+            // Inserir linhas
+            const insertLinhaQuery = `
+                INSERT INTO apontamento_linhas 
+                (apontamento_id, vila_id, etapa_id, sub_etapa_id, conta_id, sub_conta_id, supervisor, inicio, fim, horas_trabalhadas, observacao)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `;
 
-        res.status(201).json({
-            message: 'Apontamento criado com sucesso',
-            id: apontamento_id
-        });
+            for (const linha of linhas) {
+                const horas = calcularHoras(linha.inicio, linha.fim);
+
+                // DATA TYPE SAFEGUARDS
+                const values = [
+                    apontamento_id,
+                    linha.vila_id,
+                    linha.etapa_id,
+                    linha.sub_etapa_id || null, // Ensure null if empty/undefined
+                    linha.conta_id,
+                    linha.sub_conta_id || null,
+                    linha.supervisor || null,
+                    linha.inicio,
+                    linha.fim,
+                    horas,
+                    linha.observacao || null
+                ];
+
+                try {
+                    await db.query(insertLinhaQuery, values);
+                } catch (lineError) {
+                    logError('Erro na inserção da linha individual', { values, error: lineError.message });
+                    throw lineError; // Re-throw to trigger rollback
+                }
+            }
+
+            // COMMIT TRANSACTION
+            await db.query('COMMIT');
+
+            res.status(201).json({
+                message: 'Apontamento criado com sucesso',
+                id: apontamento_id
+            });
+
+        } catch (innerError) {
+            await db.query('ROLLBACK');
+            logError('Erro durante transação de criação', { body: req.body, error: innerError.message });
+            throw innerError;
+        }
 
     } catch (error) {
         console.error('Erro ao criar apontamento:', error);
-        res.status(500).json({ error: 'Erro ao criar apontamento' });
+        res.status(500).json({ error: 'Erro ao criar apontamento. Consulte o log do servidor.' });
     }
 });
 
 // PUT /api/apontamentos/:id - Atualizar apontamento
-router.put('/:id', authMiddleware, (req, res) => {
-    try {
-        const { id } = req.params;
-        const { data_apontamento, maquina_id, operador, observacoes, linhas } = req.body;
+router.put('/:id', authMiddleware, async (req, res) => {
+    const fs = require('fs');
+    const logDebug = (msg, data) => {
+        try {
+            const timestamp = new Date().toISOString();
+            const logContent = `[${timestamp}] [DEBUG] [PUT] ${msg}\nData: ${JSON.stringify(data, null, 2)}\n\n`;
+            fs.appendFileSync('backend_debug.log', logContent);
+        } catch (e) {
+            console.error('Log Error:', e);
+        }
+    };
 
+    const { id } = req.params;
+    const { data_apontamento, maquina_id, operador, observacoes, linhas } = req.body;
+
+    logDebug(`Recebendo requisição PUT /apontamentos/${id}`, { bodyKeys: Object.keys(req.body) });
+
+    // START TRANSACTION
+    await db.query('BEGIN');
+    logDebug('TRANSACAO INICIADA (BEGIN) PARA UPDATE');
+
+    try {
         // Atualizar apontamento principal
         if (data_apontamento || maquina_id || operador || observacoes !== undefined) {
             const updates = [];
             const values = [];
+            let counter = 1;
 
             if (data_apontamento) {
-                updates.push('data_apontamento = ?');
+                updates.push(`data_apontamento = $${counter++}`);
                 values.push(data_apontamento);
             }
             if (maquina_id) {
-                updates.push('maquina_id = ?');
+                updates.push(`maquina_id = $${counter++}`);
                 values.push(maquina_id);
             }
             if (operador) {
-                updates.push('operador = ?');
+                updates.push(`operador = $${counter++}`);
                 values.push(operador);
             }
             if (observacoes !== undefined) {
-                updates.push('observacoes = ?');
+                updates.push(`observacoes = $${counter++}`);
                 values.push(observacoes);
             }
 
             if (updates.length > 0) {
                 updates.push('atualizado_em = CURRENT_TIMESTAMP');
                 values.push(id);
-                db.prepare(`UPDATE apontamentos SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+                // ID is last param
+                await db.query(`UPDATE apontamentos SET ${updates.join(', ')} WHERE id = $${counter}`, values);
+                logDebug('Header atualizado com sucesso');
             }
         }
 
         // Atualizar linhas (deletar todas e recriar)
         if (linhas && linhas.length > 0) {
-            db.prepare('DELETE FROM apontamento_linhas WHERE apontamento_id = ?').run(id);
+            logDebug(`Deletando linhas antigas para o ID ${id}`);
+            await db.query('DELETE FROM apontamento_linhas WHERE apontamento_id = $1', [id]);
 
-            const insertLinha = db.prepare(`
+            const insertLinhaQuery = `
                 INSERT INTO apontamento_linhas 
-                (apontamento_id, vila_id, etapa_id, sub_etapa_id, conta_id, sub_conta_id, supervisor, inicio, fim, horas_trabalhadas)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
+                (apontamento_id, vila_id, etapa_id, sub_etapa_id, conta_id, sub_conta_id, supervisor, inicio, fim, horas_trabalhadas, observacao)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `;
 
-            linhas.forEach(linha => {
+            for (const [index, linha] of linhas.entries()) {
                 const horas = calcularHoras(linha.inicio, linha.fim);
-                insertLinha.run(
+                logDebug(`Processando (Inserção) Linha [${index}]`, { linha, horas });
+
+                const values = [
                     id,
-                    linha.vila_id,
+                    linha.vila_id, // Now receiving correct values from frontend
                     linha.etapa_id,
                     linha.sub_etapa_id || null,
                     linha.conta_id,
@@ -191,21 +273,35 @@ router.put('/:id', authMiddleware, (req, res) => {
                     linha.supervisor || null,
                     linha.inicio,
                     linha.fim,
-                    horas
-                );
-            });
+                    horas,
+                    linha.observacao || null
+                ];
+
+                try {
+                    await db.query(insertLinhaQuery, values);
+                    logDebug(`Linha [${index}] inserida com sucesso`);
+                } catch (lineError) {
+                    logDebug(`ERRO ao inserir Linha [${index}]`, { values, error: lineError.message });
+                    throw lineError;
+                }
+            }
         }
+
+        await db.query('COMMIT');
+        logDebug('TRANSACAO COMMITADA (Update finalizado)');
 
         res.json({ message: 'Apontamento atualizado com sucesso' });
 
     } catch (error) {
+        await db.query('ROLLBACK');
+        logDebug('ROLLBACK EXECUTADO (Update falhou)', { error: error.message });
         console.error('Erro ao atualizar apontamento:', error);
         res.status(500).json({ error: 'Erro ao atualizar apontamento' });
     }
 });
 
 // PUT /api/apontamentos/:id/status - Mudar status do apontamento
-router.put('/:id/status', authMiddleware, (req, res) => {
+router.put('/:id/status', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
@@ -215,11 +311,12 @@ router.put('/:id/status', authMiddleware, (req, res) => {
             return res.status(400).json({ error: 'Status inválido' });
         }
 
-        db.prepare(`
+        const query = `
             UPDATE apontamentos 
-            SET status = ?, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `).run(status, id);
+            SET status = $1, atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `;
+        await db.query(query, [status, id]);
 
         res.json({ message: 'Status atualizado com sucesso' });
 
@@ -230,12 +327,12 @@ router.put('/:id/status', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/apontamentos/:id - Deletar apontamento
-router.delete('/:id', authMiddleware, permissionMiddleware('Supervisor'), (req, res) => {
+router.delete('/:id', authMiddleware, permissionMiddleware('Supervisor'), async (req, res) => {
     try {
         const { id } = req.params;
 
         // DELETE CASCADE automático remove linhas
-        db.prepare('DELETE FROM apontamentos WHERE id = ?').run(id);
+        await db.query('DELETE FROM apontamentos WHERE id = $1', [id]);
 
         res.json({ message: 'Apontamento deletado com sucesso' });
 
@@ -246,45 +343,47 @@ router.delete('/:id', authMiddleware, permissionMiddleware('Supervisor'), (req, 
 });
 
 // GET /api/apontamentos/stats/kpis - Estatísticas e KPIs
-router.get('/stats/kpis', authMiddleware, (req, res) => {
+router.get('/stats/kpis', authMiddleware, async (req, res) => {
     try {
         const { data_inicio, data_fim } = req.query;
 
         let dateFilter = '';
         const params = [];
+        let counter = 1;
 
         if (data_inicio) {
-            dateFilter += ' AND data_apontamento >= ?';
+            dateFilter += ` AND data_apontamento >= $${counter++}`;
             params.push(data_inicio);
         }
         if (data_fim) {
-            dateFilter += ' AND data_apontamento <= ?';
+            dateFilter += ` AND data_apontamento <= $${counter++}`;
             params.push(data_fim);
         }
 
         // Total de apontamentos
-        const totalApontamentos = db.prepare(`
-            SELECT COUNT(*) as count FROM apontamentos WHERE 1=1 ${dateFilter}
-        `).get(...params).count;
+        const totalResult = await db.query(`SELECT COUNT(*) as count FROM apontamentos WHERE 1=1 ${dateFilter}`, params);
+        const totalApontamentos = totalResult.rows[0].count;
 
         // Apontamentos por status
-        const porStatus = db.prepare(`
+        const statusResult = await db.query(`
             SELECT status, COUNT(*) as count 
             FROM apontamentos 
             WHERE 1=1 ${dateFilter}
             GROUP BY status
-        `).all(...params);
+        `, params);
+        const porStatus = statusResult.rows;
 
         // Horas trabalhadas
-        const horasTrabalhadas = db.prepare(`
+        const horasResult = await db.query(`
             SELECT SUM(horas_trabalhadas) as total
             FROM apontamento_linhas al
             JOIN apontamentos a ON al.apontamento_id = a.id
             WHERE 1=1 ${dateFilter}
-        `).get(...params).total || 0;
+        `, params);
+        const horasTrabalhadas = horasResult.rows[0].total || 0;
 
         // Máquinas mais utilizadas
-        const maquinasTop = db.prepare(`
+        const maquinasResult = await db.query(`
             SELECT m.nome, COUNT(*) as count
             FROM apontamentos a
             JOIN maquinas m ON a.maquina_id = m.id
@@ -292,7 +391,8 @@ router.get('/stats/kpis', authMiddleware, (req, res) => {
             GROUP BY m.id, m.nome
             ORDER BY count DESC
             LIMIT 5
-        `).all(...params);
+        `, params);
+        const maquinasTop = maquinasResult.rows;
 
         res.json({
             totalApontamentos,

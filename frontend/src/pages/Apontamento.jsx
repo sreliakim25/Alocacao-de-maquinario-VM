@@ -42,14 +42,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useApontamentoStore from '../store/apontamentoStore';
 import useMaquinarioStore from '../store/maquinarioStore';
 import useAuthStore from '../store/authStore';
+import api from '../services/api';
 
-// Listas de Dropdown (Mock Data)
-const Vilas = ['Vila A', 'Vila B', 'Trecho Principal'];
-const Etapas = ['Terraplanagem', 'Drenagem', 'Pavimentação', 'Obras de Arte'];
-const SubEtapas = ['Escavação', 'Aterro', 'Compactação', 'Acabamento'];
-const Contas = ['Operacional', 'Manutenção', 'Ocioso'];
-const SubContas = ['Ativa', 'Parada Chuva', 'Parada Manutenção'];
-const Supervisores = ['Eng. Ricardo', 'Mestre João', 'Superv. Ana'];
+// Supervisores will be loaded from API, remove mock
+const Supervisores = [];
 
 const initialRow = {
     id: 1,
@@ -57,7 +53,6 @@ const initialRow = {
     etapa: '',
     subEtapa: '',
     conta: '',
-    subConta: '',
     supervisor: '',
     inicio: '',
     fim: '',
@@ -69,15 +64,15 @@ const Apontamento = () => {
     const { id } = useParams();
     const isEditMode = Boolean(id);
 
-    const { addApontamento, updateApontamento, updateStatus, apontamentos } = useApontamentoStore();
+    const { addApontamento, updateApontamento, updateStatus, apontamentos, fetchApontamentos } = useApontamentoStore();
     const { maquinarios } = useMaquinarioStore();
     const { user } = useAuthStore();
 
     // Estado do Cabeçalho
     const [headerData, setHeaderData] = useState({
         data: new Date().toISOString().split('T')[0],
-        maquina: '',
-        maquinaNome: '',
+        maquina: '', // Display Name
+        maquinaId: '', // ID for Backend
         operador: '',
     });
 
@@ -89,20 +84,60 @@ const Apontamento = () => {
     const [isEditable, setIsEditable] = useState(true);
     const [originalContext, setOriginalContext] = useState(null);
 
+    // Listas vindas da API
+    const [vilasOpts, setVilasOpts] = useState([]);
+    const [subEtapasOpts, setSubEtapasOpts] = useState([]); // Antiga 'Etapas'
+    const [tarefasOpts, setTarefasOpts] = useState([]); // Antiga 'SubEtapas'
+    const [ugbsOpts, setUgbsOpts] = useState([]); // Antiga 'Contas'
+    const [supervisoresOpts, setSupervisoresOpts] = useState([]);
+
+    useEffect(() => {
+        const loadOptions = async () => {
+            try {
+                const [v, s, t, u, sup] = await Promise.all([
+                    api.localizacoes.getVilas(),
+                    api.localizacoes.getSubEtapas(),
+                    api.localizacoes.getTarefas(),
+                    api.localizacoes.getUgbs(),
+                    api.localizacoes.getSupervisores()
+                ]);
+                setVilasOpts(v);
+                setSubEtapasOpts(s);
+                setTarefasOpts(t);
+                setUgbsOpts(u);
+                setSupervisoresOpts(sup);
+            } catch (err) {
+                console.error("Erro ao carregar opções:", err);
+            }
+
+        };
+        loadOptions();
+    }, []);
+
+    // Ensure data is loaded if refreshing on Edit Page
+    useEffect(() => {
+        if (isEditMode && apontamentos.length === 0) {
+            fetchApontamentos();
+        }
+    }, [isEditMode, apontamentos.length, fetchApontamentos]);
+
     // Carregar Dados na Edição
     useEffect(() => {
         if (isEditMode && id) {
-            const currentItem = apontamentos.find(a => a.id === id);
+
+            const currentItem = apontamentos.find(a => String(a.id) === String(id));
+
             if (currentItem) {
                 // Header Map
                 setHeaderData({
                     data: currentItem.data,
-                    maquina: currentItem.maquina,
-                    maquinaNome: '', // Not stored explicitly usually, but acceptable
+                    maquina: currentItem.maquina, // Name (for display/filter text)
+                    maquinaId: currentItem.maquinaId, // ID
                     operador: currentItem.operador
                 });
 
                 setOriginalContext({
+                    id: currentItem.apontamentoId, // Header ID
                     data: currentItem.data,
                     maquina: currentItem.maquina,
                     apontadorId: currentItem.apontadorId
@@ -113,33 +148,38 @@ const Apontamento = () => {
                 const editableStatuses = ['em_apontamento', 'pendente_supervisor', 'pendente_lider'];
                 setIsEditable(editableStatuses.includes(currentItem.status));
 
-                // Find all siblings
-                const siblings = apontamentos.filter(a =>
-                    a.data === currentItem.data &&
-                    a.maquina === currentItem.maquina &&
-                    a.apontadorId === currentItem.apontadorId
-                );
+                // Find all siblings (Items of the same Appointment Header)
+                const siblings = apontamentos.filter(a => a.apontamentoId === currentItem.apontamentoId);
 
                 // Row Map (Batch)
                 const mappedRows = siblings.map(item => ({
-                    id: item.id,
-                    vila: item.vila,
-                    etapa: item.detalhes?.etapa || '',
-                    subEtapa: item.detalhes?.subEtapa || '',
-                    conta: item.detalhes?.conta || '',
-                    subConta: item.detalhes?.subConta || '',
-                    supervisor: item.detalhes?.supervisor || '',
+                    id: item.id, // Line ID
+                    vila: item.vila, // ID
+                    etapa: item.detalhes?.etapa || '', // ID
+                    subEtapa: item.detalhes?.subEtapa || '', // ID
+                    conta: item.detalhes?.conta || '', // ID
+                    supervisor: item.detalhes?.supervisor || '', // Name
                     inicio: item.inicio,
                     fim: item.fim,
                     observacao: item.observacao
                 })).sort((a, b) => a.inicio.localeCompare(b.inicio));
 
                 setRows(mappedRows);
-            } else {
+            } else if (apontamentos.length > 0) {
+                // Only redirect if we have data and STILL didn't find it
                 navigate('/lista-apontamentos');
             }
         }
     }, [id, isEditMode, apontamentos, navigate]);
+
+    // Fetch on mount if empty (handling refresh on Edit page)
+    useEffect(() => {
+        if (isEditMode && apontamentos.length === 0) {
+            // We need useApontamentoStore.getState().fetchApontamentos() or import it?
+            // "addApontamento" etc are destructured, but "fetchApontamentos" is not in line 67.
+            // Let's add it.
+        }
+    }, [isEditMode, apontamentos.length]);
 
 
     // Estado do Dialog de Confirmação
@@ -148,16 +188,18 @@ const Apontamento = () => {
     // Auto-preenchimento: Máquina -> Operador
     const handleMaquinaChange = (e) => {
         if (!isEditable) return;
-        const maquinaSelecionada = maquinarios?.find(m => m.nome === e.target.value);
+        const selectedName = e.target.value;
+        const maquinaSelecionada = maquinarios?.find(m => m.nome === selectedName);
+
         if (maquinaSelecionada) {
             setHeaderData({
                 ...headerData,
                 maquina: maquinaSelecionada.nome,
-                maquinaNome: maquinaSelecionada.tipo,
+                maquinaId: maquinaSelecionada.id,
                 operador: maquinaSelecionada.operador || ''
             });
         } else {
-            setHeaderData({ ...headerData, maquina: e.target.value });
+            setHeaderData({ ...headerData, maquina: selectedName, maquinaId: '' });
         }
     };
 
@@ -185,9 +227,22 @@ const Apontamento = () => {
     // Manipulação das Linhas
     const handleRowChange = (id, field, value) => {
         if (!isEditable) return;
-        setRows(rows.map(row =>
-            row.id === id ? { ...row, [field]: value } : row
-        ));
+
+        setRows(rows.map(row => {
+            if (row.id !== id) return row;
+
+            const updatedRow = { ...row, [field]: value };
+
+            // Cascading Clears
+            if (field === 'conta') {
+                updatedRow.vila = ''; // Clear Vila when UGB changes
+            }
+            if (field === 'etapa') {
+                updatedRow.subEtapa = ''; // Clear Tarefa when Sub-Etapa changes
+            }
+
+            return updatedRow;
+        }));
     };
 
     const addRow = () => {
@@ -259,11 +314,10 @@ const Apontamento = () => {
         rows.forEach((row, index) => {
             const linhaNum = index + 1;
             const missingFields = [];
-            if (!row.vila) missingFields.push("Vila/Local");
-            if (!row.etapa) missingFields.push("Etapa");
-            if (!row.subEtapa) missingFields.push("Sub-Etapa");
-            if (!row.conta) missingFields.push("Conta");
-            if (!row.subConta) missingFields.push("Sub-Conta");
+            if (!row.vila) missingFields.push("Vila");
+            if (!row.etapa) missingFields.push("Sub-Etapa"); // UI Label mapping
+            if (!row.subEtapa) missingFields.push("Tarefa"); // UI Label mapping
+            if (!row.conta) missingFields.push("UGB"); // UI Label mapping
             if (!row.supervisor) missingFields.push("Supervisor");
             if (!row.inicio) missingFields.push("Início");
             if (!row.fim) missingFields.push("Fim");
@@ -287,54 +341,49 @@ const Apontamento = () => {
 
     const handleConfirmSubmit = () => {
         const baseApontamento = {
+            data_apontamento: headerData.data, // Backend Expects this key
+            maquina_id: headerData.maquinaId, // Backend ID
+
+            // Legacy for store flatten:
             data: headerData.data,
             maquina: headerData.maquina,
+
             operador: headerData.operador,
 
             // Workflow fields
             status: isEditMode ? statusData : 'em_apontamento',
             apontadorId: user?.id || 'anon',
-            apontadorNome: user?.name || 'Desconhecido',
+            observacoes: '', // We don't have header observation in UI yet, send empty
             ultimaPendencia: ''
         };
 
         // Create list of items from rows
         const itemsToSave = rows.map(row => {
-            // Generate ID if temp or new
+            // Generate temporary ID if new (frontend only handling)
+            // Store will handle save
             const isTempId = (typeof row.id === 'string' && row.id.startsWith('temp-'));
             const rowId = isTempId
                 ? Math.random().toString(36).substr(2, 9)
                 : (isEditMode ? row.id : Math.random().toString(36).substr(2, 9));
 
             return {
-                ...baseApontamento,
+                ...baseApontamento, // Carries header info
                 id: rowId,
-                // Row specific
+                // Row specific (Using Frontend Names for Store Mapping)
                 vila: row.vila,
+                etapa: row.etapa,
+                subEtapa: row.subEtapa,
+                conta: row.conta,
+                // subConta not tracked in main row state? 
+                supervisor: row.supervisor, // Name
+
                 inicio: row.inicio,
                 fim: row.fim,
-                periodo: getPeriodo(row.inicio),
-                totalHoras: calculateRowHours(row.inicio, row.fim),
-                observacao: row.observacao,
-
-                detalhes: {
-                    etapa: row.etapa,
-                    subEtapa: row.subEtapa,
-                    conta: row.conta,
-                    subConta: row.subConta,
-                    supervisor: row.supervisor,
-                }
+                observacao: row.observacao
             };
         });
 
-        if (isEditMode && originalContext) {
-            useApontamentoStore.getState().syncApontamentosBatch(originalContext, itemsToSave);
-        } else {
-            // Create Mode: Use dummy context to ensure no deletion of unrelated items, 
-            // or better, verify if checking duplicates matters. 
-            // For now, simple add.
-            useApontamentoStore.getState().syncApontamentosBatch({ data: 'x', maquina: 'x', apontadorId: 'x' }, itemsToSave);
-        }
+        useApontamentoStore.getState().syncApontamentosBatch(originalContext, itemsToSave);
 
         setOpenConfirmDialog(false);
         navigate('/lista-apontamentos');
@@ -399,7 +448,7 @@ const Apontamento = () => {
             {/* Cabeçalho do Apontamento */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={3}>
+                    <Grid item xs={12} sm={6} md sx={{ minWidth: '150px' }}>
                         <TextField
                             fullWidth
                             label="Data"
@@ -412,7 +461,7 @@ const Apontamento = () => {
                             disabled={!isEditable}
                         />
                     </Grid>
-                    <Grid item xs={12} md={5}>
+                    <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
                         <TextField
                             select
                             fullWidth
@@ -437,7 +486,7 @@ const Apontamento = () => {
                             ))}
                         </TextField>
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
                         <TextField
                             fullWidth
                             label="Operador"
@@ -481,72 +530,72 @@ const Apontamento = () => {
 
                     {/* Linha 1: Classificação (Dropdowns) */}
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6} md={2}>
+                        <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
                             <TextField
                                 select
                                 fullWidth
-                                label="Vila / Local"
-                                value={row.vila}
-                                onChange={(e) => handleRowChange(row.id, 'vila', e.target.value)}
-                                size="small"
-                                disabled={!isEditable}
-                            >
-                                {Vilas.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={2}>
-                            <TextField
-                                select
-                                fullWidth
-                                label="Etapa"
-                                value={row.etapa}
-                                onChange={(e) => handleRowChange(row.id, 'etapa', e.target.value)}
-                                size="small"
-                                disabled={!isEditable}
-                            >
-                                {Etapas.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={2}>
-                            <TextField
-                                select
-                                fullWidth
-                                label="Sub-Etapa"
-                                value={row.subEtapa}
-                                onChange={(e) => handleRowChange(row.id, 'subEtapa', e.target.value)}
-                                size="small"
-                                disabled={!isEditable}
-                            >
-                                {SubEtapas.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
-                            </TextField>
-                        </Grid>
-                        <Grid item xs={12} sm={6} md={2}>
-                            <TextField
-                                select
-                                fullWidth
-                                label="Conta"
+                                label="UGB (Conta)"
                                 value={row.conta}
                                 onChange={(e) => handleRowChange(row.id, 'conta', e.target.value)}
                                 size="small"
                                 disabled={!isEditable}
                             >
-                                {Contas.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
+                                {ugbsOpts.map(op => <MenuItem key={op.id} value={op.id}>{op.nome}</MenuItem>)}
                             </TextField>
                         </Grid>
-                        <Grid item xs={12} sm={6} md={2}>
+                        <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
                             <TextField
                                 select
                                 fullWidth
-                                label="Sub-Conta"
-                                value={row.subConta}
-                                onChange={(e) => handleRowChange(row.id, 'subConta', e.target.value)}
+                                label="Vila"
+                                value={row.vila}
+                                onChange={(e) => handleRowChange(row.id, 'vila', e.target.value)}
                                 size="small"
                                 disabled={!isEditable}
                             >
-                                {SubContas.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
+                                {vilasOpts
+                                    .filter(v => {
+                                        if (!row.conta) return true;
+                                        // inputs are IDS
+                                        return v.ugb_id === row.conta || v.ugb_id === null;
+                                    })
+                                    .map(op => <MenuItem key={op.id} value={op.id}>{op.nome}</MenuItem>)
+                                }
                             </TextField>
                         </Grid>
-                        <Grid item xs={12} sm={6} md={2}>
+                        <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
+                            <TextField
+                                select
+                                fullWidth
+                                label="Sub-Etapa (Etapa Global)"
+                                value={row.etapa}
+                                onChange={(e) => handleRowChange(row.id, 'etapa', e.target.value)}
+                                size="small"
+                                disabled={!isEditable}
+                            >
+                                {subEtapasOpts.map(op => <MenuItem key={op.id} value={op.id}>{op.nome}</MenuItem>)}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
+                            <TextField
+                                select
+                                fullWidth
+                                label="Tarefa"
+                                value={row.subEtapa}
+                                onChange={(e) => handleRowChange(row.id, 'subEtapa', e.target.value)}
+                                size="small"
+                                disabled={!isEditable}
+                            >
+                                {tarefasOpts
+                                    .filter(t => {
+                                        // inputs are IDS. t.sub_etapa_id is ID.
+                                        return !row.etapa || t.sub_etapa_id === row.etapa;
+                                    })
+                                    .map(op => <MenuItem key={op.id} value={op.id}>{op.nome}</MenuItem>)
+                                }
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={6} md sx={{ minWidth: '200px' }}>
                             <TextField
                                 select
                                 fullWidth
@@ -556,7 +605,14 @@ const Apontamento = () => {
                                 size="small"
                                 disabled={!isEditable}
                             >
-                                {Supervisores.map(op => <MenuItem key={op} value={op}>{op}</MenuItem>)}
+                                {supervisoresOpts
+                                    .filter(s => {
+                                        if (!row.conta) return true;
+                                        // inputs are IDS
+                                        return s.ugb_id === row.conta;
+                                    })
+                                    .map(op => <MenuItem key={op.id} value={op.nome}>{op.nome}</MenuItem>)
+                                }
                             </TextField>
                         </Grid>
                     </Grid>

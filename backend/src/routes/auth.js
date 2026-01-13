@@ -16,8 +16,8 @@ router.post('/register', async (req, res) => {
         }
 
         // Verificar se email já existe
-        const existingUser = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
-        if (existingUser) {
+        const existingUserResult = await db.query('SELECT id FROM usuarios WHERE email = $1', [email]);
+        if (existingUserResult.rows.length > 0) {
             return res.status(400).json({ error: 'Email já cadastrado' });
         }
 
@@ -25,16 +25,17 @@ router.post('/register', async (req, res) => {
         const senha_hash = await bcrypt.hash(senha, 10);
 
         // Inserir usuário (inativo até aprovação)
-        const insert = db.prepare(`
+        const query = `
             INSERT INTO usuarios (nome, email, senha_hash, telefone, nivel_acesso, ativo)
-            VALUES (?, ?, ?, ?, 'Apontador', 0)
-        `);
+            VALUES ($1, $2, $3, $4, 'Apontador', false)
+            RETURNING id
+        `;
 
-        const result = insert.run(nome, email, senha_hash, telefone || null);
+        const result = await db.query(query, [nome, email, senha_hash, telefone || null]);
 
         res.status(201).json({
             message: 'Usuário cadastrado! Aguarde aprovação do administrador.',
-            userId: result.lastInsertRowid
+            userId: result.rows[0].id
         });
 
     } catch (error) {
@@ -53,11 +54,13 @@ router.post('/login', async (req, res) => {
         }
 
         // Buscar usuário
-        const user = db.prepare(`
+        const query = `
             SELECT id, nome, email, senha_hash, nivel_acesso, ativo, foto_url
             FROM usuarios
-            WHERE email = ?
-        `).get(email);
+            WHERE email = $1
+        `;
+        const result = await db.query(query, [email]);
+        const user = result.rows[0];
 
         if (!user) {
             return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -102,13 +105,15 @@ router.post('/login', async (req, res) => {
 });
 
 // GET /api/auth/me - Dados do usuário logado
-router.get('/me', authMiddleware, (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
     try {
-        const user = db.prepare(`
+        const query = `
             SELECT id, nome, email, nivel_acesso, ativo, foto_url, telefone
             FROM usuarios
-            WHERE id = ?
-        `).get(req.userId);
+            WHERE id = $1
+        `;
+        const result = await db.query(query, [req.userId]);
+        const user = result.rows[0];
 
         if (!user) {
             return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -135,7 +140,8 @@ router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
 
-        const user = db.prepare('SELECT id, nome FROM usuarios WHERE email = ?').get(email);
+        const result = await db.query('SELECT id, nome FROM usuarios WHERE email = $1', [email]);
+        const user = result.rows[0];
 
         // Sempre retornar success (por segurança, não revelar se email existe)
         res.json({

@@ -11,6 +11,9 @@ const useAuthStore = create(
             error: null,
             loading: false,
 
+            // Ação para limpar erros (faltava essa função!)
+            clearError: () => set({ error: null }),
+
             // Login com email e senha (API REAL)
             login: async (email, password) => {
                 set({ loading: true, error: null });
@@ -141,8 +144,10 @@ const useAuthStore = create(
 
                 const roleHierarchy = {
                     'Desenvolvedor': 7,
+                    'Administrador': 7, // Added Admin
                     'Gerente': 6,
                     'Líder': 5,
+                    'Lider': 5, // Added normalized alias
                     'Supervisor': 4,
                     'Suprimentos': 3,
                     'Apontador': 2

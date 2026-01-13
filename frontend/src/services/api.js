@@ -163,60 +163,102 @@ export const localizacoesAPI = {
         return await apiRequest('/api/localizacoes/vilas');
     },
 
-    createVila: async (nome) => {
+    createVila: async (nome, ugb_id) => {
         return await apiRequest('/api/localizacoes/vilas', {
             method: 'POST',
-            body: JSON.stringify({ nome }),
+            body: JSON.stringify({ nome, ugb_id }),
         });
     },
 
-    // Etapas
-    getEtapas: async () => {
-        return await apiRequest('/api/localizacoes/etapas');
-    },
-
-    createEtapa: async (nome) => {
-        return await apiRequest('/api/localizacoes/etapas', {
-            method: 'POST',
-            body: JSON.stringify({ nome }),
+    deleteVila: async (id) => {
+        return await apiRequest(`/api/localizacoes/vilas/${id}`, {
+            method: 'DELETE',
         });
     },
 
-    // Sub-Etapas
-    getSubEtapas: async (etapa_id = null) => {
-        const query = etapa_id ? `?etapa_id=${etapa_id}` : '';
-        return await apiRequest(`/api/localizacoes/sub-etapas${query}`);
+    // Sub-Etapas (Antigas Etapas)
+    getSubEtapas: async () => {
+        return await apiRequest('/api/localizacoes/sub-etapas');
     },
 
-    createSubEtapa: async (etapa_id, nome) => {
+    createSubEtapa: async (nome) => {
         return await apiRequest('/api/localizacoes/sub-etapas', {
             method: 'POST',
-            body: JSON.stringify({ etapa_id, nome }),
+            body: JSON.stringify({ nome }),
         });
     },
 
-    // Contas
-    getContas: async () => {
-        return await apiRequest('/api/localizacoes/contas');
+    deleteSubEtapa: async (id) => {
+        return await apiRequest(`/api/localizacoes/sub-etapas/${id}`, {
+            method: 'DELETE',
+        });
     },
 
-    createConta: async (nome) => {
-        return await apiRequest('/api/localizacoes/contas', {
+    // Tarefas (Antigas Sub-Etapas)
+    getTarefas: async (sub_etapa_id = null) => {
+        const query = sub_etapa_id ? `?sub_etapa_id=${sub_etapa_id}` : '';
+        return await apiRequest(`/api/localizacoes/tarefas${query}`);
+    },
+
+    createTarefa: async (sub_etapa_id, nome) => {
+        return await apiRequest('/api/localizacoes/tarefas', {
+            method: 'POST',
+            body: JSON.stringify({ sub_etapa_id, nome }),
+        });
+    },
+
+    deleteTarefa: async (id) => {
+        return await apiRequest(`/api/localizacoes/tarefas/${id}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // UGBs (Antigas Contas)
+    getUgbs: async () => {
+        return await apiRequest('/api/localizacoes/ugbs');
+    },
+
+    createUgb: async (nome) => {
+        return await apiRequest('/api/localizacoes/ugbs', {
             method: 'POST',
             body: JSON.stringify({ nome }),
         });
     },
 
-    // Sub-Contas
-    getSubContas: async (conta_id = null) => {
-        const query = conta_id ? `?conta_id=${conta_id}` : '';
-        return await apiRequest(`/api/localizacoes/sub-contas${query}`);
+    deleteUgb: async (id) => {
+        return await apiRequest(`/api/localizacoes/ugbs/${id}`, {
+            method: 'DELETE',
+        });
     },
 
-    createSubConta: async (conta_id, nome) => {
-        return await apiRequest('/api/localizacoes/sub-contas', {
+    // Supervisores
+    getSupervisores: async () => {
+        return await apiRequest('/api/localizacoes/supervisores');
+    },
+
+    createSupervisor: async (supervisorData) => {
+        return await apiRequest('/api/localizacoes/supervisores', {
             method: 'POST',
-            body: JSON.stringify({ conta_id, nome }),
+            body: JSON.stringify(supervisorData),
+        });
+    },
+
+    deleteSupervisor: async (id) => {
+        return await apiRequest(`/api/localizacoes/supervisores/${id}`, {
+            method: 'DELETE',
+        });
+    },
+
+    importMaster: async (dados, dryRun = false, importType = 'empreendimentos') => {
+        return await apiRequest('/api/localizacoes/import-master', {
+            method: 'POST',
+            body: JSON.stringify({ dados, dryRun, importType }),
+        });
+    },
+
+    resetDatabase: async () => {
+        return await apiRequest('/api/localizacoes/reset-database', {
+            method: 'DELETE',
         });
     },
 };

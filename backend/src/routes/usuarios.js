@@ -5,15 +5,15 @@ const authMiddleware = require('../middleware/auth');
 const permissionMiddleware = require('../middleware/permissions');
 
 // GET /api/usuarios - Listar todos os usuários (admin apenas)
-router.get('/', authMiddleware, permissionMiddleware('Gerente'), (req, res) => {
+router.get('/', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
-        const users = db.prepare(`
+        const query = `
             SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em
             FROM usuarios
             ORDER BY criado_em DESC
-        `).all();
-
-        res.json(users);
+        `;
+        const result = await db.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Erro ao listar usuários:', error);
         res.status(500).json({ error: 'Erro ao listar usuários' });
@@ -21,7 +21,7 @@ router.get('/', authMiddleware, permissionMiddleware('Gerente'), (req, res) => {
 });
 
 // GET /api/usuarios/:id - Buscar usuário por ID
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -30,11 +30,13 @@ router.get('/:id', authMiddleware, (req, res) => {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
-        const user = db.prepare(`
+        const query = `
             SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em
             FROM usuarios
-            WHERE id = ?
-        `).get(id);
+            WHERE id = $1
+        `;
+        const result = await db.query(query, [id]);
+        const user = result.rows[0];
 
         if (!user) {
             return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -60,23 +62,24 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
         const updates = [];
         const values = [];
+        let counter = 1;
 
         if (nome) {
-            updates.push('nome = ?');
+            updates.push(`nome = $${counter++}`);
             values.push(nome);
         }
         if (telefone !== undefined) {
-            updates.push('telefone = ?');
+            updates.push(`telefone = $${counter++}`);
             values.push(telefone);
         }
         if (foto_url !== undefined) {
-            updates.push('foto_url = ?');
+            updates.push(`foto_url = $${counter++}`);
             values.push(foto_url);
         }
         if (senha) {
             const bcrypt = require('bcrypt');
             const senha_hash = await bcrypt.hash(senha, 10);
-            updates.push('senha_hash = ?');
+            updates.push(`senha_hash = $${counter++}`);
             values.push(senha_hash);
         }
 
@@ -87,8 +90,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
         updates.push('atualizado_em = CURRENT_TIMESTAMP');
         values.push(id);
 
-        const query = `UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`;
-        db.prepare(query).run(...values);
+        const query = `UPDATE usuarios SET ${updates.join(', ')} WHERE id = $${counter}`;
+        await db.query(query, values);
 
         res.json({ message: 'Usuário atualizado com sucesso' });
 
@@ -99,7 +102,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/usuarios/:id/role - Alterar permissão (Gerente+)
-router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), (req, res) => {
+router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
         const { id } = req.params;
         const { nivel_acesso } = req.body;
@@ -114,11 +117,12 @@ router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), (req, r
             return res.status(403).json({ error: 'Não é possível alterar sua própria permissão' });
         }
 
-        db.prepare(`
+        const query = `
             UPDATE usuarios 
-            SET nivel_acesso = ?, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `).run(nivel_acesso, id);
+            SET nivel_acesso = $1, atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `;
+        await db.query(query, [nivel_acesso, id]);
 
         res.json({ message: 'Permissão atualizada com sucesso' });
 
@@ -129,7 +133,7 @@ router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), (req, r
 });
 
 // PUT /api/usuarios/:id/status - Ativar/Desativar usuário (Gerente+)
-router.put('/:id/status', authMiddleware, permissionMiddleware('Gerente'), (req, res) => {
+router.put('/:id/status', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
         const { id } = req.params;
         const { ativo } = req.body;
@@ -139,11 +143,12 @@ router.put('/:id/status', authMiddleware, permissionMiddleware('Gerente'), (req,
             return res.status(403).json({ error: 'Não é possível desativar sua própria conta' });
         }
 
-        db.prepare(`
+        const query = `
             UPDATE usuarios 
-            SET ativo = ?, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `).run(ativo ? 1 : 0, id);
+            SET ativo = $1, atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = $2
+        `;
+        await db.query(query, [ativo ? true : false, id]);
 
         res.json({ message: `Usuário ${ativo ? 'ativado' : 'desativado'} com sucesso` });
 
@@ -154,7 +159,7 @@ router.put('/:id/status', authMiddleware, permissionMiddleware('Gerente'), (req,
 });
 
 // DELETE /api/usuarios/:id - Deletar usuário (Desenvolvedor apenas)
-router.delete('/:id', authMiddleware, permissionMiddleware('Desenvolvedor'), (req, res) => {
+router.delete('/:id', authMiddleware, permissionMiddleware('Desenvolvedor'), async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -163,7 +168,7 @@ router.delete('/:id', authMiddleware, permissionMiddleware('Desenvolvedor'), (re
             return res.status(403).json({ error: 'Não é possível deletar sua própria conta' });
         }
 
-        db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+        await db.query('DELETE FROM usuarios WHERE id = $1', [id]);
 
         res.json({ message: 'Usuário deletado com sucesso' });
 

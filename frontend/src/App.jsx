@@ -17,6 +17,7 @@ import ListaApontamentos from './pages/ListaApontamentos';
 import Maquinarios from './pages/Maquinarios';
 import Configuracoes from './pages/Configuracoes';
 import UserManagement from './pages/UserManagement';
+import Cadastros from './pages/Cadastros';
 
 // Layout & Components
 import MainLayout from './components/MainLayout';
@@ -65,6 +66,7 @@ function App() {
             <Route path="apontamento/:id" element={<Apontamento />} />
             <Route path="lista-apontamentos" element={<ListaApontamentos />} />
             <Route path="cadastros" element={<Maquinarios />} />
+            <Route path="cadastros-gerais" element={<Cadastros />} />
             <Route path="configuracoes" element={<Configuracoes />} />
 
             {/* Rota de Gerenciamento de Usuários (apenas Gerente+) */}

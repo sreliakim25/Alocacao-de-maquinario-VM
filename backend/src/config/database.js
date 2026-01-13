@@ -1,28 +1,42 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-// Configuração do banco de dados SQLite
-const dbPath = path.join(__dirname, '../../database.db');
-const db = new Database(dbPath, { verbose: console.log });
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    },
+    connectionTimeoutMillis: 10000 // 10 segundos
+});
 
-// Configurar WAL mode para melhor concorrência
-db.pragma('journal_mode = WAL');
+pool.on('connect', () => {
+    console.log('✅ Base de dados conectada com sucesso!');
+});
 
-// Habilitar foreign keys
-db.pragma('foreign_keys = ON');
+pool.on('error', (err) => {
+    console.error('❌ Erro inesperado na conexão com o banco:', err);
+    process.exit(-1);
+});
 
-// Função para executar migrations
-function runMigrations() {
+// Wrapper para manter compatibilidade com interface de query simples
+const db = {
+    query: (text, params) => pool.query(text, params),
+    pool: pool
+};
+
+// Função para executar migrações (simplificada para Postgres)
+async function runMigrations() {
     const fs = require('fs');
+    const path = require('path');
     const schemaPath = path.join(__dirname, '../database/schema.sql');
 
     try {
         const schema = fs.readFileSync(schemaPath, 'utf8');
-        db.exec(schema);
+        await pool.query(schema);
         console.log('✅ Migrações executadas com sucesso!');
     } catch (error) {
         console.error('❌ Erro ao executar migrações:', error.message);
-        throw error;
+        throw error; // Propaga o erro para ser tratado pelo caller
     }
 }
 

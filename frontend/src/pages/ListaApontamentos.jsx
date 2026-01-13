@@ -32,7 +32,7 @@ import {
 } from '@mui/icons-material';
 import useApontamentoStore from '../store/apontamentoStore';
 import useAuthStore from '../store/authStore';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const StatusChip = ({ status }) => {
@@ -88,20 +88,32 @@ const StatusChip = ({ status }) => {
 };
 
 const ListaApontamentos = () => {
-    const { apontamentos, updateStatus, updateStatusBatch } = useApontamentoStore();
+    const { apontamentos, updateStatus, updateStatusBatch, fetchApontamentos } = useApontamentoStore();
     const { user } = useAuthStore();
     const navigate = useNavigate();
+
+    // Fetch data on mount
+    useEffect(() => {
+        fetchApontamentos();
+    }, [fetchApontamentos]);
 
     // 1. Filter by User Access (Apontador sees only own)
     // Assuming 'admin' or 'supervisor' roles would see all.
     // For this implementation, we restrict if user is NOT admin.
     const filteredApontamentos = useMemo(() => {
         if (!user) return [];
-        // Se for admin/supervisor vê tudo, senão só os seus
-        if (user.role === 'admin' || user.role === 'supervisor') {
+        // Check if user has a privileged role
+        const userRole = (user.role || '').toLowerCase();
+        const privilegedKeywords = ['admin', 'supervisor', 'desenvolvedor', 'gerente', 'líder', 'master'];
+
+        const isPrivileged = privilegedKeywords.some(keyword => userRole.includes(keyword));
+
+        if (isPrivileged) {
             return apontamentos;
         }
-        return apontamentos.filter(a => a.apontadorId === user.id);
+
+        // Filter by ID (Loose string comparison)
+        return apontamentos.filter(a => String(a.apontadorId) === String(user.id));
     }, [apontamentos, user]);
 
     // 2. Group by Date, then by Machine
@@ -244,10 +256,9 @@ const ListaApontamentos = () => {
                                                         <TableCell>Status</TableCell>
                                                         <TableCell>Operador</TableCell>
                                                         <TableCell>Vila</TableCell>
-                                                        <TableCell>Etapa</TableCell>
                                                         <TableCell>Sub-Etapa</TableCell>
-                                                        <TableCell>Conta</TableCell>
-                                                        <TableCell>Sub-Conta</TableCell>
+                                                        <TableCell>Tarefa</TableCell>
+                                                        <TableCell>UGB</TableCell>
                                                         <TableCell>Supervisor</TableCell>
                                                         <TableCell>Horário</TableCell>
                                                         <TableCell align="center">Total</TableCell>
@@ -264,19 +275,16 @@ const ListaApontamentos = () => {
                                                                 <Typography variant="body2" color="text.secondary">{row.operador}</Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                <Typography variant="body2" color="text.secondary">{row.vila}</Typography>
+                                                                <Typography variant="body2" color="text.secondary">{row.vilaNome || row.vila}</Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.etapa || '-'}</Typography>
+                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.etapaNome || '-'}</Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.subEtapa || '-'}</Typography>
+                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.subEtapaNome || '-'}</Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.conta || '-'}</Typography>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.subConta || '-'}</Typography>
+                                                                <Typography variant="body2" color="text.secondary">{row.detalhes?.contaNome || '-'}</Typography>
                                                             </TableCell>
                                                             <TableCell>
                                                                 <Typography variant="body2" color="text.secondary">{row.detalhes?.supervisor || '-'}</Typography>

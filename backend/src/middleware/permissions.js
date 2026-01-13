@@ -1,8 +1,10 @@
 // Hierarquia de permissões
 const roleHierarchy = {
     'Desenvolvedor': 7,
+    'Administrador': 7,
     'Gerente': 6,
     'Líder': 5,
+    'Lider': 5,
     'Supervisor': 4,
     'Suprimentos': 3,
     'Apontador': 2

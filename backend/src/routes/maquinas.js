@@ -4,16 +4,16 @@ const { db } = require('../config/database');
 const authMiddleware = require('../middleware/auth');
 
 // GET /api/maquinas - Listar todas as máquinas
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     try {
-        const maquinas = db.prepare(`
-            SELECT id, nome, tipo, placa, ativo, criado_em
+        const query = `
+            SELECT id, nome, tipo, placa, operador, setor, fornecedor, foto, ativo, criado_em
             FROM maquinas
-            WHERE ativo = 1
+            WHERE ativo = true
             ORDER BY nome
-        `).all();
-
-        res.json(maquinas);
+        `;
+        const result = await db.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Erro ao listar máquinas:', error);
         res.status(500).json({ error: 'Erro ao listar máquinas' });
@@ -21,15 +21,17 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 // GET /api/maquinas/:id - Buscar máquina por ID
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        const maquina = db.prepare(`
-            SELECT id, nome, tipo, placa, ativo, criado_em
+        const query = `
+            SELECT id, nome, tipo, placa, operador, setor, fornecedor, foto, ativo, criado_em
             FROM maquinas
-            WHERE id = ?
-        `).get(id);
+            WHERE id = $1
+        `;
+        const result = await db.query(query, [id]);
+        const maquina = result.rows[0];
 
         if (!maquina) {
             return res.status(404).json({ error: 'Máquina não encontrada' });
@@ -43,24 +45,34 @@ router.get('/:id', authMiddleware, (req, res) => {
 });
 
 // POST /api/maquinas - Criar nova máquina (Supervisor+)
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { nome, tipo, placa } = req.body;
+        // Frontend sends: nome, tipo, placa, operador (nome), setor, fornecedor, foto
+        const { nome, tipo, placa, operador, setor, fornecedor, foto } = req.body;
 
         if (!nome) {
             return res.status(400).json({ error: 'Nome é obrigatório' });
         }
 
-        const insert = db.prepare(`
-            INSERT INTO maquinas (nome, tipo, placa, ativo)
-            VALUES (?, ?, ?, 1)
-        `);
+        const query = `
+            INSERT INTO maquinas (nome, tipo, placa, operador, setor, fornecedor, foto, ativo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+            RETURNING id
+        `;
 
-        const result = insert.run(nome, tipo || null, placa || null);
+        const result = await db.query(query, [
+            nome,
+            tipo || null,
+            placa || null,
+            operador || null,
+            setor || null,
+            fornecedor || null,
+            foto || null
+        ]);
 
         res.status(201).json({
             message: 'Máquina criada com sucesso',
-            id: result.lastInsertRowid
+            id: result.rows[0].id
         });
 
     } catch (error) {
@@ -70,26 +82,29 @@ router.post('/', authMiddleware, (req, res) => {
 });
 
 // PUT /api/maquinas/:id - Atualizar máquina (Supervisor+)
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, tipo, placa } = req.body;
+        const { nome, tipo, placa, operador, setor, fornecedor, foto } = req.body;
 
         const updates = [];
         const values = [];
+        let counter = 1;
 
-        if (nome) {
-            updates.push('nome = ?');
-            values.push(nome);
-        }
-        if (tipo !== undefined) {
-            updates.push('tipo = ?');
-            values.push(tipo);
-        }
-        if (placa !== undefined) {
-            updates.push('placa = ?');
-            values.push(placa);
-        }
+        const addUpdate = (field, value) => {
+            if (value !== undefined) {
+                updates.push(`${field} = $${counter++}`);
+                values.push(value);
+            }
+        };
+
+        addUpdate('nome', nome);
+        addUpdate('tipo', tipo);
+        addUpdate('placa', placa);
+        addUpdate('operador', operador);
+        addUpdate('setor', setor);
+        addUpdate('fornecedor', fornecedor);
+        addUpdate('foto', foto);
 
         if (updates.length === 0) {
             return res.status(400).json({ error: 'Nenhum campo para atualizar' });
@@ -97,8 +112,8 @@ router.put('/:id', authMiddleware, (req, res) => {
 
         values.push(id);
 
-        const query = `UPDATE maquinas SET ${updates.join(', ')} WHERE id = ?`;
-        db.prepare(query).run(...values);
+        const query = `UPDATE maquinas SET ${updates.join(', ')} WHERE id = $${counter}`;
+        await db.query(query, values);
 
         res.json({ message: 'Máquina atualizada com sucesso' });
 
@@ -109,11 +124,11 @@ router.put('/:id', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/maquinas/:id - Deletar máquina (soft delete)
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
 
-        db.prepare('UPDATE maquinas SET ativo = 0 WHERE id = ?').run(id);
+        await db.query('UPDATE maquinas SET ativo = false WHERE id = $1', [id]);
 
         res.json({ message: 'Máquina desativada com sucesso' });
 
