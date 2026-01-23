@@ -25,59 +25,112 @@ import {
     Stack,
     Alert,
     Tooltip,
-    CircularProgress
+    CircularProgress,
+    Grid
 } from '@mui/material';
 import {
     Edit as EditIcon,
     PersonOffOutlined,
     PersonOutlined,
-    LockResetOutlined,
-    DeleteOutline
+    LockResetOutlined
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import useUserStore from '../store/userStore';
 import useAuthStore from '../store/authStore';
+import { localizacoesAPI, usuariosAPI } from '../services/api';
 
 const USER_ROLES = [
     'Apontador',
     'Supervisor',
-    'Lider', // Normalized to match DB seed
-    'Líder', // Keep for compatibility if needed
+    'Lider',
+    'Líder',
     'Suprimentos',
     'Gerente',
-    'Administrador', // Added Admin
+    'Administrador',
     'Desenvolvedor'
 ];
 
 const UserManagement = () => {
     const [selectedUser, setSelectedUser] = useState(null);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
-    const [newRole, setNewRole] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState('all'); // all, active, inactive
-    const [resetPasswordDialog, setResetPasswordDialog] = useState(null);
 
-    const { users, loading, fetchUsers, updateUserRole, toggleUserStatus, resetUserPassword } = useUserStore();
+    // Unified Edit State
+    const [editData, setEditData] = useState({
+        nome: '',
+        email: '',
+        telefone: '',
+        role: '',
+        conta_id: ''
+    });
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [resetPasswordDialog, setResetPasswordDialog] = useState(null);
+    const [ugbs, setUgbs] = useState([]);
+    const [loadingSave, setLoadingSave] = useState(false);
+
+    const { users, loading, fetchUsers, toggleUserStatus, resetUserPassword } = useUserStore();
     const { user: currentUser } = useAuthStore();
 
     useEffect(() => {
         fetchUsers();
+        loadUgbs();
     }, [fetchUsers]);
+
+    const loadUgbs = async () => {
+        try {
+            const data = await localizacoesAPI.getUgbs();
+            setUgbs(data);
+        } catch (error) {
+            console.error('Erro ao carregar UGBs:', error);
+        }
+    };
+
+    const getUgbName = (contaId) => {
+        if (!contaId) return '-';
+        const ugb = ugbs.find(u => u.id === contaId);
+        return ugb ? ugb.nome : 'ID: ' + contaId;
+    };
 
     const handleEditClick = (user) => {
         setSelectedUser(user);
-        setNewRole(user.role);
+        setEditData({
+            nome: user.name || '',
+            email: user.email || '',
+            telefone: user.telefone || '',
+            role: user.role || '',
+            conta_id: user.conta_id || ''
+        });
         setEditDialogOpen(true);
     };
 
-    const handleSaveRole = async () => {
-        if (selectedUser && newRole) {
-            const success = await updateUserRole(selectedUser.id, newRole);
-            if (success) {
-                setEditDialogOpen(false);
-                setSelectedUser(null);
-                fetchUsers();
-            }
+    const handleSaveUser = async () => {
+        if (!selectedUser) return;
+        setLoadingSave(true);
+
+        try {
+            // 1. Update Profile Info (Name, Email, Phone)
+            await usuariosAPI.update(selectedUser.id, {
+                nome: editData.nome,
+                email: editData.email,
+                telefone: editData.telefone,
+            });
+
+            // 2. Update Role & UGB
+            // Ensure conta_id is null if empty
+            const contaIdToSend = editData.conta_id === '' ? null : editData.conta_id;
+            await usuariosAPI.updateRole(selectedUser.id, editData.role, contaIdToSend);
+
+            // 3. Update local store (simpler than complex reducers for now)
+            await fetchUsers();
+
+            setEditDialogOpen(false);
+            setSelectedUser(null);
+        } catch (error) {
+            console.error('Erro ao salvar usuário:', error);
+            alert('Erro ao salvar alterações: ' + (error.message || 'Erro desconhecido'));
+        } finally {
+            setLoadingSave(false);
         }
     };
 
@@ -87,9 +140,13 @@ const UserManagement = () => {
     };
 
     const handleResetPassword = async (userId) => {
+        if (!window.confirm('Tem certeza que deseja resetar a senha deste usuário?')) return;
+
         const result = await resetUserPassword(userId);
         if (result.success) {
             setResetPasswordDialog(result.tempPassword);
+        } else {
+            alert('Erro ao resetar senha: ' + result.error);
         }
     };
 
@@ -106,8 +163,10 @@ const UserManagement = () => {
     };
 
     const filteredUsers = (users || []).filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const userName = user.nome || user.name || '';
+        const userEmail = user.email || '';
+        const matchesSearch = userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            userEmail.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'all' ||
             (filterStatus === 'active' && user.ativo) ||
             (filterStatus === 'inactive' && !user.ativo);
@@ -126,7 +185,7 @@ const UserManagement = () => {
                             Gerenciamento de Usuários
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            Gerencie permissões e status dos usuários do sistema
+                            Gerencie permissões, dados e status dos usuários do sistema
                         </Typography>
                     </Box>
 
@@ -173,6 +232,7 @@ const UserManagement = () => {
                                         <TableCell>Nome</TableCell>
                                         <TableCell>Email</TableCell>
                                         <TableCell>Telefone</TableCell>
+                                        <TableCell>UGB / Conta</TableCell>
                                         <TableCell>Permissão</TableCell>
                                         <TableCell>Status</TableCell>
                                         <TableCell>Cadastrado em</TableCell>
@@ -184,7 +244,7 @@ const UserManagement = () => {
                                         <TableRow key={user.id}>
                                             <TableCell>
                                                 <Typography variant="body2" fontWeight={!user.ativo ? 'bold' : 'normal'}>
-                                                    {user.name}
+                                                    {user.name || user.nome}
                                                     {!user.ativo && (
                                                         <Chip
                                                             label="Pendente"
@@ -197,6 +257,11 @@ const UserManagement = () => {
                                             </TableCell>
                                             <TableCell>{user.email}</TableCell>
                                             <TableCell>{user.telefone || '-'}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {getUgbName(user.conta_id)}
+                                                </Typography>
+                                            </TableCell>
                                             <TableCell>
                                                 <Chip
                                                     label={user.role}
@@ -218,42 +283,44 @@ const UserManagement = () => {
                                                     : '-'}
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Tooltip title="Editar Permissões">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => handleEditClick(user)}
-                                                        disabled={user.id === currentUser?.id}
-                                                    >
-                                                        <EditIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Tooltip title={user.ativo ? 'Desativar' : 'Ativar'}>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => handleToggleStatus(user.id)}
-                                                        disabled={user.id === currentUser?.id}
-                                                    >
-                                                        {user.ativo ? (
-                                                            <PersonOffOutlined fontSize="small" />
-                                                        ) : (
-                                                            <PersonOutlined fontSize="small" />
-                                                        )}
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Tooltip title="Resetar Senha">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => handleResetPassword(user.id)}
-                                                    >
-                                                        <LockResetOutlined fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
+                                                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                    <Tooltip title="Editar Usuário">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleEditClick(user)}
+                                                            disabled={user.id === currentUser?.id}
+                                                        >
+                                                            <EditIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title={user.ativo ? 'Desativar' : 'Ativar'}>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleToggleStatus(user.id)}
+                                                            disabled={user.id === currentUser?.id}
+                                                        >
+                                                            {user.ativo ? (
+                                                                <PersonOffOutlined fontSize="small" />
+                                                            ) : (
+                                                                <PersonOutlined fontSize="small" />
+                                                            )}
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Resetar Senha">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleResetPassword(user.id)}
+                                                        >
+                                                            <LockResetOutlined fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Stack>
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                     {filteredUsers.length === 0 && (
                                         <TableRow>
-                                            <TableCell colSpan={7} align="center">
+                                            <TableCell colSpan={8} align="center">
                                                 <Typography color="text.secondary" py={4}>
                                                     Nenhum usuário encontrado
                                                 </Typography>
@@ -267,23 +334,36 @@ const UserManagement = () => {
                 </Stack>
             </Paper>
 
-            {/* Dialog de Edição */}
-            <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Editar Permissões</DialogTitle>
+            {/* Dialog de Edição Completa */}
+            <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Editar Usuário</DialogTitle>
                 <DialogContent>
-                    <Stack spacing={2} sx={{ pt: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            Usuário: <strong>{selectedUser?.name}</strong>
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Email: {selectedUser?.email}
-                        </Typography>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <TextField
+                            label="Nome Completo"
+                            fullWidth
+                            value={editData.nome}
+                            onChange={(e) => setEditData({ ...editData, nome: e.target.value })}
+                        />
+                        <TextField
+                            label="Email"
+                            fullWidth
+                            value={editData.email}
+                            onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                        />
+                        <TextField
+                            label="Telefone"
+                            fullWidth
+                            value={editData.telefone}
+                            onChange={(e) => setEditData({ ...editData, telefone: e.target.value })}
+                        />
+
                         <FormControl fullWidth>
                             <InputLabel>Nível de Acesso</InputLabel>
                             <Select
-                                value={newRole}
+                                value={editData.role}
                                 label="Nível de Acesso"
-                                onChange={(e) => setNewRole(e.target.value)}
+                                onChange={(e) => setEditData({ ...editData, role: e.target.value })}
                             >
                                 {USER_ROLES.map((role) => (
                                     <MenuItem key={role} value={role}>
@@ -292,12 +372,35 @@ const UserManagement = () => {
                                 ))}
                             </Select>
                         </FormControl>
+
+                        <FormControl fullWidth>
+                            <InputLabel>UGB / Conta</InputLabel>
+                            <Select
+                                value={editData.conta_id}
+                                label="UGB / Conta"
+                                onChange={(e) => setEditData({ ...editData, conta_id: e.target.value })}
+                            >
+                                <MenuItem value="">
+                                    <em>Nenhuma (Acesso Geral)</em>
+                                </MenuItem>
+                                {ugbs.map((ugb) => (
+                                    <MenuItem key={ugb.id} value={ugb.id}>
+                                        {ugb.nome}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                     </Stack>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSaveRole} variant="contained">
-                        Salvar
+                    <Button
+                        onClick={handleSaveUser}
+                        variant="contained"
+                        disabled={loadingSave}
+                        startIcon={loadingSave ? <CircularProgress size={20} color="inherit" /> : null}
+                    >
+                        {loadingSave ? 'Salvando...' : 'Salvar'}
                     </Button>
                 </DialogActions>
             </Dialog>

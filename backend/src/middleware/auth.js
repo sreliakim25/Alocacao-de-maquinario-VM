@@ -31,6 +31,11 @@ function authMiddleware(req, res, next) {
             // Adicionar dados do usuário à requisição
             req.userId = decoded.id;
             req.userRole = decoded.role;
+            req.user = {
+                id: decoded.id,
+                role: decoded.role,
+                conta_id: decoded.conta_id
+            };
 
             return next();
         });

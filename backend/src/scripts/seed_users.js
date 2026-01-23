@@ -2,11 +2,12 @@ const { db } = require('../config/database');
 const bcrypt = require('bcrypt');
 
 const usersToCreate = [
-    { nome: 'Admin Processos', email: 'adm.processos@vianaemoura.com.br', role: 'Administrador' },
-    { nome: 'Apontador Padrão', email: 'apontador@vianaemoura.com.br', role: 'Apontador' },
-    { nome: 'Supervisor Obras', email: 'supervisor@vianaemoura.com.br', role: 'Supervisor' },
-    { nome: 'Líder Equipe', email: 'lider@vianaemoura.com.br', role: 'Lider' }, // Check if role 'Lider' matches backend expectation or if it's 'Líder' or 'Encarregado'
-    { nome: 'Suprimentos', email: 'suprimentos@vianaemoura.com.br', role: 'Suprimentos' }
+    { nome: 'Desenvolvedor', email: 'desenvolvedor@vianaemoura.com.br', role: 'Desenvolvedor', senha: 'Devvm2026@' },
+    { nome: 'Admin Processos', email: 'adm.processos@vianaemoura.com.br', role: 'Administrador', senha: '123456' },
+    { nome: 'Apontador Padrão', email: 'apontador@vianaemoura.com.br', role: 'Apontador', senha: '123456' },
+    { nome: 'Supervisor Obras', email: 'supervisor@vianaemoura.com.br', role: 'Supervisor', senha: '123456' },
+    { nome: 'Líder Equipe', email: 'lider@vianaemoura.com.br', role: 'Lider', senha: '123456' },
+    { nome: 'Suprimentos', email: 'suprimentos@vianaemoura.com.br', role: 'Suprimentos', senha: '123456' }
 ];
 
 // Based on frontend/src/store/authStore.js or backend/src/middleware/auth.js, check exact role strings. 
@@ -17,9 +18,9 @@ async function seedUsers() {
     console.log('Iniciando criação de usuários de teste...');
 
     try {
-        const passwordHash = await bcrypt.hash('123456', 10);
-
         for (const user of usersToCreate) {
+            const passwordHash = await bcrypt.hash(user.senha, 10);
+
             // Check if exists
             const checkRes = await db.query('SELECT id FROM usuarios WHERE email = $1', [user.email]);
 
@@ -41,7 +42,7 @@ async function seedUsers() {
             }
         }
 
-        console.log('Seeding concluído. Senha padrão: 123456');
+        console.log('Seeding concluído.');
         process.exit(0);
 
     } catch (error) {

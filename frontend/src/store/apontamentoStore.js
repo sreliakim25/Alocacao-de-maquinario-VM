@@ -50,7 +50,38 @@ const useApontamentoStore = create((set, get) => ({
                         contaNome: line.ugb_nome,
 
                         supervisor: line.supervisor // Name
-                    }
+                    },
+
+                    // Pendências (Rejection Reason)
+                    // Pendências (Rejection Reason)
+                    ultimaPendencia: (() => {
+                        if (header.status === 'em_apontamento' && header.observacoes && header.observacoes.includes('[REPROVADO')) {
+                            const parts = header.observacoes.split('[REPROVADO');
+                            const lastPart = parts[parts.length - 1]; // Get the last rejection block
+                            const reasonParts = lastPart.split(']:');
+
+                            if (reasonParts.length > 1) {
+                                let message = reasonParts.slice(1).join(']:').trim();
+
+                                // Check for Line ID tag
+                                // Format: [ID:123] Reason
+                                const idMatch = message.match(/^\[ID:(\d+)\]/);
+
+                                if (idMatch) {
+                                    const rejectedLineId = idMatch[1];
+                                    if (String(rejectedLineId) === String(line.id)) {
+                                        return message.replace(/^\[ID:\d+\]\s*/, '');
+                                    }
+                                    return null; // ID mismatch, this line is fine (or at least not the one flagged)
+                                }
+
+                                // Fallback for legacy generic rejections (show on all lines or none? Let's show on all to be safe)
+                                return message;
+                            }
+                            return 'Ver observações';
+                        }
+                        return null;
+                    })()
                 }));
             });
 
@@ -66,7 +97,7 @@ const useApontamentoStore = create((set, get) => ({
         // Implementation omitted as UI uses syncApontamentosBatch
     },
 
-    updateStatus: async (id, status) => {
+    updateStatus: async (id, status, extraData = {}) => {
         set({ loading: true });
         try {
             // ID here could be Line ID or Header ID.
@@ -78,9 +109,38 @@ const useApontamentoStore = create((set, get) => ({
             const item = state.apontamentos.find(a => a.id === id);
             if (!item) throw new Error('Item não encontrado');
 
-            await apontamentosAPI.updateStatus(item.apontamentoId, status);
+            await apontamentosAPI.updateStatus(item.apontamentoId, status, extraData);
 
             // Refetch to update UI
+            await get().fetchApontamentos();
+        } catch (error) {
+            set({ error: error.message, loading: false });
+        }
+    },
+
+    // Batch Status Update
+    updateStatusBatch: async (ids, status, extraData = {}) => {
+        set({ loading: true });
+        try {
+            // We need to find the Header IDs for these Line IDs.
+            // We assume all lines belong to same Header if batch action is from grouped view?
+            // Actually, `ListaApontamentos` groups by machine, so they might be different headers if multiple appointments for same machine same day?
+            // But usually it's one header per (Date, Machine, Operator).
+            // Let's iterate unique Header IDs.
+            const state = get();
+            const headerIds = new Set();
+
+            ids.forEach(id => {
+                const item = state.apontamentos.find(a => a.id === id);
+                if (item) headerIds.add(item.apontamentoId);
+            });
+
+            const promises = Array.from(headerIds).map(headerId =>
+                apontamentosAPI.updateStatus(headerId, status, extraData)
+            );
+
+            await Promise.all(promises);
+
             await get().fetchApontamentos();
         } catch (error) {
             set({ error: error.message, loading: false });

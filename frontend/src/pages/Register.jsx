@@ -12,13 +12,18 @@ import {
     Link,
     CircularProgress,
     Checkbox,
-    FormControlLabel
+    FormControlLabel,
+    Select,
+    MenuItem,
+    InputLabel,
+    FormControl
 } from '@mui/material';
 import { PersonAddOutlined, ArrowBackOutlined } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import logo from '../assets/logo.png';
 import constructionBg from '../assets/construction-bg.jpg';
+import { localizacoesAPI } from '../services/api';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -26,12 +31,23 @@ const Register = () => {
         email: '',
         telefone: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        conta_id: ''
     });
+    const [ugbs, setUgbs] = useState([]);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const navigate = useNavigate();
-    const { register, error, loading, clearError } = useAuthStore();
+
+    useEffect(() => {
+        const loadUgbs = async () => {
+            try {
+                const data = await localizacoesAPI.getUgbs();
+                setUgbs(data);
+            } catch (error) {
+                console.error('Erro ao carregar UGBs:', error);
+            }
+        };
+        loadUgbs();
+    }, []);
 
     const handleChange = (e) => {
         setFormData({
@@ -232,6 +248,26 @@ const Register = () => {
                                     placeholder="(00) 00000-0000"
                                     disabled={loading}
                                 />
+                                <FormControl fullWidth size="medium">
+                                    <InputLabel id="ugb-label">UGB / Conta</InputLabel>
+                                    <Select
+                                        labelId="ugb-label"
+                                        name="conta_id"
+                                        value={formData.conta_id || ''}
+                                        label="UGB / Conta"
+                                        onChange={handleChange}
+                                        disabled={loading}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Nenhuma (Acesso Geral)</em>
+                                        </MenuItem>
+                                        {ugbs.map((ugb) => (
+                                            <MenuItem key={ugb.id} value={ugb.id}>
+                                                {ugb.nome}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
                                 <TextField
                                     fullWidth
                                     label="Senha"

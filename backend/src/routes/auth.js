@@ -8,7 +8,7 @@ const authMiddleware = require('../middleware/auth');
 // POST /api/auth/register - Cadastro de novo usuário
 router.post('/register', async (req, res) => {
     try {
-        const { nome, email, telefone, senha } = req.body;
+        const { nome, email, telefone, senha, conta_id } = req.body;
 
         // Validações
         if (!nome || !email || !senha) {
@@ -26,12 +26,12 @@ router.post('/register', async (req, res) => {
 
         // Inserir usuário (inativo até aprovação)
         const query = `
-            INSERT INTO usuarios (nome, email, senha_hash, telefone, nivel_acesso, ativo)
-            VALUES ($1, $2, $3, $4, 'Apontador', false)
+            INSERT INTO usuarios (nome, email, senha_hash, telefone, nivel_acesso, ativo, conta_id)
+            VALUES ($1, $2, $3, $4, 'Apontador', false, $5)
             RETURNING id
         `;
 
-        const result = await db.query(query, [nome, email, senha_hash, telefone || null]);
+        const result = await db.query(query, [nome, email, senha_hash, telefone || null, conta_id || null]);
 
         res.status(201).json({
             message: 'Usuário cadastrado! Aguarde aprovação do administrador.',
@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
 
         // Buscar usuário
         const query = `
-            SELECT id, nome, email, senha_hash, nivel_acesso, ativo, foto_url
+            SELECT id, nome, email, senha_hash, nivel_acesso, ativo, foto_url, conta_id
             FROM usuarios
             WHERE email = $1
         `;
@@ -79,7 +79,7 @@ router.post('/login', async (req, res) => {
 
         // Gerar token JWT
         const token = jwt.sign(
-            { id: user.id, role: user.nivel_acesso },
+            { id: user.id, role: user.nivel_acesso, conta_id: user.conta_id },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -91,10 +91,12 @@ router.post('/login', async (req, res) => {
             token,
             user: {
                 id: user.id,
-                name: user.nome,
+                name: user.nome, // Manter name para compatibilidade frontend por enquanto
+                nome: user.nome,
                 email: user.email,
                 role: user.nivel_acesso,
-                foto_url: user.foto_url
+                foto_url: user.foto_url,
+                conta_id: user.conta_id
             }
         });
 
@@ -108,7 +110,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
     try {
         const query = `
-            SELECT id, nome, email, nivel_acesso, ativo, foto_url, telefone
+            SELECT id, nome, email, nivel_acesso, ativo, foto_url, telefone, conta_id
             FROM usuarios
             WHERE id = $1
         `;
@@ -121,12 +123,14 @@ router.get('/me', authMiddleware, async (req, res) => {
 
         res.json({
             id: user.id,
-            name: user.nome,
+            name: user.nome, // Compatibilidade
+            nome: user.nome,
             email: user.email,
             role: user.nivel_acesso,
             ativo: user.ativo,
             foto_url: user.foto_url,
-            telefone: user.telefone
+            telefone: user.telefone,
+            conta_id: user.conta_id
         });
 
     } catch (error) {
@@ -139,16 +143,30 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
+        const crypto = require('crypto');
 
         const result = await db.query('SELECT id, nome FROM usuarios WHERE email = $1', [email]);
         const user = result.rows[0];
 
-        // Sempre retornar success (por segurança, não revelar se email existe)
+        if (user) {
+            // Gerar token
+            const token = crypto.randomBytes(32).toString('hex');
+            const expires = new Date(Date.now() + 3600000); // 1 hora
+
+            await db.query(`
+                INSERT INTO password_resets (user_id, token, expires_at)
+                VALUES ($1, $2, $3)
+            `, [user.id, token, expires]);
+
+            // Em produção enviaria email. Aqui vamos logar para teste.
+            console.log(`🔑 RESET PASSWORD TOKEN para ${email}: ${token}`);
+            console.log(`🔗 Link (Simulado): http://localhost:3005/reset-password?token=${token}`);
+        }
+
+        // Sempre retornar success (segurança)
         res.json({
             message: 'Se o email existir, você receberá instruções de recuperação.'
         });
-
-        // TODO: Implementar envio de email com token de recuperação
 
     } catch (error) {
         console.error('Erro ao solicitar recuperação:', error);
@@ -161,11 +179,36 @@ router.post('/reset-password', async (req, res) => {
     try {
         const { token, novaSenha } = req.body;
 
-        // TODO: Validar token de recuperação
-        // TODO: Verificar expiração do token
+        if (!token || !novaSenha) {
+            return res.status(400).json({ error: 'Token e nova senha são obrigatórios' });
+        }
 
-        // Por enquanto, retornar não implementado
-        res.status(501).json({ error: 'Funcionalidade em desenvolvimento' });
+        // Buscar token válido e não expirado
+        const queryToken = `
+            SELECT user_id FROM password_resets 
+            WHERE token = $1 
+            AND expires_at > CURRENT_TIMESTAMP 
+            AND used = false
+        `;
+        const result = await db.query(queryToken, [token]);
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Token inválido ou expirado' });
+        }
+
+        const userId = result.rows[0].user_id;
+
+        // Atualizar senha do usuário
+        const senha_hash = await bcrypt.hash(novaSenha, 10);
+        await db.query('UPDATE usuarios SET senha_hash = $1 WHERE id = $2', [senha_hash, userId]);
+
+        // Marcar token como usado
+        await db.query('UPDATE password_resets SET used = true WHERE token = $1', [token]);
+
+        // Opcional: invalidar outros tokens desse usuário
+        await db.query('UPDATE password_resets SET used = true WHERE user_id = $1 AND token != $2', [userId, token]);
+
+        res.json({ message: 'Senha atualizada com sucesso! Faça login com a nova senha.' });
 
     } catch (error) {
         console.error('Erro ao resetar senha:', error);

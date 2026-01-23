@@ -5,31 +5,36 @@ import {
     TextField,
     Button,
     Typography,
-    Stack,
-    Alert,
     Paper,
     alpha,
+    Alert,
     CircularProgress
 } from '@mui/material';
-import { EmailOutlined, ArrowBackOutlined, CheckCircleOutline } from '@mui/icons-material';
+import { ArrowBackOutlined, SendOutlined } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import useAuthStore from '../store/authStore';
+import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
 import constructionBg from '../assets/construction-bg.jpg';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
-    const { requestPasswordReset, error, loading, clearError } = useAuthStore();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        clearError();
+        setLoading(true);
+        setError(null);
 
-        const result = await requestPasswordReset(email);
-        if (result.success) {
+        try {
+            await authAPI.forgotPassword(email);
             setSuccess(true);
+        } catch (err) {
+            setError(err.message || 'Erro ao solicitar recuperação. Tente novamente.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -55,11 +60,12 @@ const ForgotPassword = () => {
                     },
                 }}
             >
-                <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+                <Container maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                     <Paper
                         elevation={0}
                         sx={{
-                            p: 5,
+                            p: 4,
+                            width: '100%',
                             backgroundColor: alpha('#1a1a1a', 0.8),
                             backdropFilter: 'blur(20px)',
                             border: '1px solid rgba(255,255,255,0.1)',
@@ -67,18 +73,15 @@ const ForgotPassword = () => {
                             textAlign: 'center'
                         }}
                     >
-                        <CheckCircleOutline sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
-                        <Typography variant="h4" gutterBottom sx={{ color: 'primary.main' }}>
-                            Email Enviado!
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" paragraph>
-                            Se o email <strong>{email}</strong> estiver cadastrado, você receberá instruções para redefinir sua senha.
+                        <Typography variant="h5" gutterBottom sx={{ color: 'primary.main', mb: 2 }}>
+                            📩 Email Enviado!
                         </Typography>
                         <Typography variant="body2" color="text.secondary" paragraph>
-                            Verifique sua caixa de entrada e também a pasta de spam.
+                            Se o email <strong>{email}</strong> estiver cadastrado, você receberá um link para redefinir sua senha em instantes.
                         </Typography>
                         <Button
                             variant="contained"
+                            fullWidth
                             onClick={() => navigate('/login')}
                             sx={{ mt: 2 }}
                         >
@@ -111,11 +114,11 @@ const ForgotPassword = () => {
                 },
             }}
         >
-            <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+            <Container maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                 <Paper
                     elevation={0}
                     sx={{
-                        p: 5,
+                        p: 4,
                         width: '100%',
                         backgroundColor: alpha('#1a1a1a', 0.8),
                         backdropFilter: 'blur(20px)',
@@ -123,77 +126,62 @@ const ForgotPassword = () => {
                         borderRadius: 3,
                     }}
                 >
-                    <Stack spacing={4}>
-                        {/* Logo e Título */}
-                        <Box textAlign="center">
-                            <Box
-                                component="img"
-                                src={logo}
-                                alt="Logo"
-                                sx={{ height: 60, mb: 2 }}
-                            />
-                            <Typography
-                                variant="h4"
-                                gutterBottom
-                                sx={{
-                                    background: 'linear-gradient(135deg, #D9A441 0%, #E5B854 100%)',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Recuperar Senha
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Digite seu email para receber instruções de recuperação
-                            </Typography>
-                        </Box>
+                    <Box textAlign="center" mb={3}>
+                        <Box
+                            component="img"
+                            src={logo}
+                            alt="Logo"
+                            sx={{ height: 50, mb: 2 }}
+                        />
+                        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                            Recuperar Senha
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Digite seu email para receber o link de redefinição
+                        </Typography>
+                    </Box>
 
-                        {/* Mensagem de erro */}
-                        {error && (
-                            <Alert severity="error" onClose={clearError}>
-                                {error}
-                            </Alert>
-                        )}
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
+                    )}
 
-                        {/* Formulário */}
-                        <form onSubmit={handleSubmit}>
-                            <Stack spacing={3}>
-                                <TextField
-                                    fullWidth
-                                    label="Email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    autoFocus
-                                    disabled={loading}
-                                    placeholder="seu@email.com"
-                                />
+                    <form onSubmit={handleSubmit}>
+                        <TextField
+                            fullWidth
+                            label="Email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            disabled={loading}
+                            sx={{ mb: 3 }}
+                        />
 
-                                <Button
-                                    type="submit"
-                                    variant="contained"
-                                    size="large"
-                                    fullWidth
-                                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <EmailOutlined />}
-                                    disabled={loading}
-                                    sx={{ py: 1.5 }}
-                                >
-                                    {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
-                                </Button>
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            size="large"
+                            disabled={loading}
+                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SendOutlined />}
+                            sx={{ mb: 2 }}
+                        >
+                            {loading ? 'Enviando...' : 'Enviar Link'}
+                        </Button>
 
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<ArrowBackOutlined />}
-                                    onClick={() => navigate('/login')}
-                                    disabled={loading}
-                                >
-                                    Voltar para Login
-                                </Button>
-                            </Stack>
-                        </form>
-                    </Stack>
+                        <Button
+                            fullWidth
+                            variant="text"
+                            startIcon={<ArrowBackOutlined />}
+                            onClick={() => navigate('/login')}
+                            disabled={loading}
+                            sx={{ color: 'text.secondary' }}
+                        >
+                            Voltar para Login
+                        </Button>
+                    </form>
                 </Paper>
             </Container>
         </Box>

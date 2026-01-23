@@ -8,41 +8,63 @@ const permissionMiddleware = require('../middleware/permissions');
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const { data_inicio, data_fim, maquina_id, status } = req.query;
+        const { conta_id, role } = req.user;
 
-        let query = `
-            SELECT a.*, m.nome as maquina_nome
+        let queryBase = `
+            SELECT DISTINCT a.id, a.data_apontamento, a.maquina_id, a.operador, a.apontador_id, a.status, a.criado_em, a.observacoes, m.nome as maquina_nome
             FROM apontamentos a
             LEFT JOIN maquinas m ON a.maquina_id = m.id
-            WHERE 1=1
         `;
+
+        // Segregation Join
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            queryBase += ` JOIN apontamento_linhas al_seg ON a.id = al_seg.apontamento_id `;
+        }
+
+        let queryWhere = ` WHERE 1=1 `;
         const params = [];
         let counter = 1;
 
+        // Segregation Filter
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            queryWhere += ` AND al_seg.conta_id = $${counter++} `;
+            params.push(conta_id);
+        }
+
         if (data_inicio) {
-            query += ` AND a.data_apontamento >= $${counter++}`;
+            queryWhere += ` AND a.data_apontamento >= $${counter++}`;
             params.push(data_inicio);
         }
         if (data_fim) {
-            query += ` AND a.data_apontamento <= $${counter++}`;
+            queryWhere += ` AND a.data_apontamento <= $${counter++}`;
             params.push(data_fim);
         }
         if (maquina_id) {
-            query += ` AND a.maquina_id = $${counter++}`;
+            queryWhere += ` AND a.maquina_id = $${counter++}`;
             params.push(maquina_id);
         }
         if (status) {
-            query += ` AND a.status = $${counter++}`;
+            queryWhere += ` AND a.status = $${counter++}`;
             params.push(status);
         }
 
-        query += ' ORDER BY a.data_apontamento DESC, a.criado_em DESC';
+        // VISIBILITY RULES
+        if (role === 'Supervisor') {
+            // Supervisors cannot see 'em_apontamento' (Drafts)
+            queryWhere += ` AND a.status != 'em_apontamento'`;
+        } else if (role === 'Líder' || role === 'Lider') {
+            // Leaders only see what Supervisors approved
+            queryWhere += ` AND a.status IN ('pendente_lider', 'aprovado', 'liberado_lider')`;
+        }
+
+        const query = queryBase + queryWhere + ' ORDER BY a.data_apontamento DESC, a.criado_em DESC';
 
         const result = await db.query(query, params);
         const apontamentos = result.rows;
 
         // Buscar linhas de cada apontamento
         for (const apt of apontamentos) {
-            const linesQuery = `
+            let linesQuery = `
                 SELECT al.*, 
                        v.nome as vila_nome, 
                        se.nome as etapa_nome, 
@@ -55,7 +77,15 @@ router.get('/', authMiddleware, async (req, res) => {
                 LEFT JOIN ugbs u ON al.conta_id = u.id
                 WHERE al.apontamento_id = $1
             `;
-            const linesResult = await db.query(linesQuery, [apt.id]);
+            const linesParams = [apt.id];
+
+            // Também filtrar as linhas exibidas? Sim, para consistência visual.
+            if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+                linesQuery += ` AND al.conta_id = $2`;
+                linesParams.push(conta_id);
+            }
+
+            const linesResult = await db.query(linesQuery, linesParams);
             apt.linhas = linesResult.rows;
         }
 
@@ -111,7 +141,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // POST /api/apontamentos - Criar novo apontamento
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, permissionMiddleware(['Apontador', 'Suprimentos']), async (req, res) => {
     const fs = require('fs');
     const logError = (msg, data) => {
         const timestamp = new Date().toISOString();
@@ -193,8 +223,8 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
-// PUT /api/apontamentos/:id - Atualizar apontamento
-router.put('/:id', authMiddleware, async (req, res) => {
+// PUT /api/apontamentos/:id - Atualizar apontamento (Conteúdo)
+router.put('/:id', authMiddleware, permissionMiddleware(['Apontador']), async (req, res) => {
     const fs = require('fs');
     const logDebug = (msg, data) => {
         try {
@@ -300,23 +330,46 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-// PUT /api/apontamentos/:id/status - Mudar status do apontamento
-router.put('/:id/status', authMiddleware, async (req, res) => {
+// PUT /api/apontamentos/:id/status - Mudar status do apontamento (Validação)
+router.put('/:id/status', authMiddleware, permissionMiddleware(['Apontador', 'Suprimentos', 'Supervisor', 'Líder']), async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        const validStatus = ['em_apontamento', 'liberado_apontador', 'pendente_supervisor', 'pendente_lider', 'aprovado'];
+        const validStatus = ['em_apontamento', 'liberado_apontador', 'pendente_supervisor', 'pendente_lider', 'aprovado', 'liberado_lider']; // Added liberado_lider just in case
         if (!validStatus.includes(status)) {
             return res.status(400).json({ error: 'Status inválido' });
         }
 
-        const query = `
+        let query = `
             UPDATE apontamentos 
             SET status = $1, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = $2
         `;
-        await db.query(query, [status, id]);
+        const params = [status, id];
+        let counter = 3;
+
+        // REJECTION LOGIC
+        if (status === 'em_apontamento') {
+            // If reverting to draft (Rejection), reason is required
+            const { observacoes_reprovacao } = req.body;
+            if (!observacoes_reprovacao) {
+                return res.status(400).json({ error: 'Motivo da reprovação é obrigatório' });
+            }
+
+            // Append to existing validation/observation log
+            // We use standard string concat for simplicity in SQL
+            // formatted: [Data] [Autor] Motivo
+            const timestamp = new Date().toLocaleString('pt-BR');
+            const autor = req.user.nome || req.userRole;
+            const newObs = `\n[REPROVADO em ${timestamp} por ${autor}]: ${observacoes_reprovacao}`;
+
+            query += `, observacoes = COALESCE(observacoes, '') || $${counter++}`;
+            params.push(newObs);
+        }
+
+        query += ` WHERE id = $2`;
+
+        await db.query(query, params);
 
         res.json({ message: 'Status atualizado com sucesso' });
 
@@ -327,7 +380,7 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/apontamentos/:id - Deletar apontamento
-router.delete('/:id', authMiddleware, permissionMiddleware('Supervisor'), async (req, res) => {
+router.delete('/:id', authMiddleware, permissionMiddleware(['Apontador', 'Suprimentos']), async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -346,6 +399,7 @@ router.delete('/:id', authMiddleware, permissionMiddleware('Supervisor'), async 
 router.get('/stats/kpis', authMiddleware, async (req, res) => {
     try {
         const { data_inicio, data_fim } = req.query;
+        const { conta_id, role } = req.user;
 
         let dateFilter = '';
         const params = [];
@@ -360,38 +414,95 @@ router.get('/stats/kpis', authMiddleware, async (req, res) => {
             params.push(data_fim);
         }
 
-        // Total de apontamentos
-        const totalResult = await db.query(`SELECT COUNT(*) as count FROM apontamentos WHERE 1=1 ${dateFilter}`, params);
+        let segregationJoin = '';
+        let segregationFilter = '';
+
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            // Logic for total count needs to join lines to check UGB
+            // We can filter appointments that have at least one line of this UGB
+            segregationJoin = ` JOIN apontamento_linhas al_seg ON a.id = al_seg.apontamento_id `;
+            segregationFilter = ` AND al_seg.conta_id = $${counter++} `;
+            params.push(conta_id);
+        }
+
+        // Total de apontamentos (Unique appointment IDs that match filter)
+        const totalQuery = `
+            SELECT COUNT(DISTINCT a.id) as count 
+            FROM apontamentos a
+            ${segregationJoin}
+            WHERE 1=1 ${dateFilter} ${segregationFilter}
+        `;
+        const totalResult = await db.query(totalQuery, params);
         const totalApontamentos = totalResult.rows[0].count;
 
         // Apontamentos por status
-        const statusResult = await db.query(`
-            SELECT status, COUNT(*) as count 
-            FROM apontamentos 
-            WHERE 1=1 ${dateFilter}
-            GROUP BY status
-        `, params);
+        const statusQuery = `
+            SELECT a.status, COUNT(DISTINCT a.id) as count 
+            FROM apontamentos a
+            ${segregationJoin}
+            WHERE 1=1 ${dateFilter} ${segregationFilter}
+            GROUP BY a.status
+        `;
+        const statusResult = await db.query(statusQuery, params);
         const porStatus = statusResult.rows;
 
-        // Horas trabalhadas
-        const horasResult = await db.query(`
-            SELECT SUM(horas_trabalhadas) as total
+        // Horas trabalhadas (Only sum lines that belong to the UGB if segregated?)
+        // If segregated, we probably only want to count hours for that UGB.
+        // Currently hours are summed from al.horas_trabalhadas
+
+        // Re-construct logic for lines stats specifically
+        // If segregated, we filter by al.conta_id in the JOIN or WHERE
+
+        let horasWhere = ` WHERE 1=1 ${dateFilter} `;
+
+        // Note: dateFilter uses 'data_apontamento', so we need join with apontamentos 'a'
+
+        let horasQuery = `
+            SELECT SUM(al.horas_trabalhadas) as total
             FROM apontamento_linhas al
             JOIN apontamentos a ON al.apontamento_id = a.id
-            WHERE 1=1 ${dateFilter}
-        `, params);
+        `;
+
+        // Params for Horas (need to be fresh or careful with order)
+        // Let's create specific params for this query to avoid index confusion or reuse
+        // Actually, reusing params with different query structure is tricky. 
+        // Better to rebuild params for this query if structure differs.
+
+        const horasParams = [];
+        let hCounter = 1;
+        if (data_inicio) {
+            horasQuery += ` AND a.data_apontamento >= $${hCounter++}`;
+            horasParams.push(data_inicio);
+        }
+        if (data_fim) {
+            horasQuery += ` AND a.data_apontamento <= $${hCounter++}`;
+            horasParams.push(data_fim);
+        }
+
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            horasQuery += ` AND al.conta_id = $${hCounter++}`;
+            horasParams.push(conta_id);
+        }
+
+        const horasResult = await db.query(horasQuery, horasParams);
         const horasTrabalhadas = horasResult.rows[0].total || 0;
 
         // Máquinas mais utilizadas
-        const maquinasResult = await db.query(`
-            SELECT m.nome, COUNT(*) as count
+        // Filter appointments by segregation, then count
+        // Can reuse the main logic, join maquinas
+
+        const maquinasQuery = `
+            SELECT m.nome, COUNT(DISTINCT a.id) as count
             FROM apontamentos a
             JOIN maquinas m ON a.maquina_id = m.id
-            WHERE 1=1 ${dateFilter}
+            ${segregationJoin}
+            WHERE 1=1 ${dateFilter} ${segregationFilter}
             GROUP BY m.id, m.nome
             ORDER BY count DESC
             LIMIT 5
-        `, params);
+        `;
+        // Reuse original params which cover date and segregation
+        const maquinasResult = await db.query(maquinasQuery, params);
         const maquinasTop = maquinasResult.rows;
 
         res.json({

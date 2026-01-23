@@ -1,63 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Container,
     Box,
     TextField,
     Button,
     Typography,
-    Stack,
-    Alert,
     Paper,
     alpha,
+    Alert,
     CircularProgress
 } from '@mui/material';
-import { LockResetOutlined, CheckCircleOutline } from '@mui/icons-material';
+import { LockResetOutlined, ArrowBackOutlined } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import useAuthStore from '../store/authStore';
+import { authAPI } from '../services/api';
 import logo from '../assets/logo.png';
 import constructionBg from '../assets/construction-bg.jpg';
 
 const ResetPassword = () => {
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [success, setSuccess] = useState(false);
-    const [validationError, setValidationError] = useState('');
-    const navigate = useNavigate();
     const { token } = useParams();
-    const { resetPassword, error, loading, clearError } = useAuthStore();
+    const navigate = useNavigate();
 
-    const validatePassword = () => {
-        setValidationError('');
+    const [passwords, setPasswords] = useState({
+        password: '',
+        confirmPassword: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState(null);
 
-        if (newPassword.length < 8) {
-            setValidationError('A senha deve ter no mínimo 8 caracteres');
-            return false;
+    useEffect(() => {
+        if (!token) {
+            setError('Token de recuperação inválido ou não fornecido.');
         }
+    }, [token]);
 
-        if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-            setValidationError('A senha deve conter letras e números');
-            return false;
-        }
-
-        if (newPassword !== confirmPassword) {
-            setValidationError('As senhas não coincidem');
-            return false;
-        }
-
-        return true;
+    const validate = () => {
+        if (passwords.password.length < 8) return 'A senha deve ter no mínimo 8 caracteres';
+        if (passwords.password !== passwords.confirmPassword) return 'As senhas não coincidem';
+        return null;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        clearError();
-
-        if (!validatePassword()) {
+        const validationError = validate();
+        if (validationError) {
+            setError(validationError);
             return;
         }
 
-        const success = await resetPassword(token, newPassword);
-        if (success) {
+        setLoading(true);
+        setError(null);
+
+        try {
+            await authAPI.resetPassword(token, passwords.password);
             setSuccess(true);
+        } catch (err) {
+            setError(err.message || 'Erro ao redefinir senha. O link pode ter expirado.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -83,11 +83,12 @@ const ResetPassword = () => {
                     },
                 }}
             >
-                <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+                <Container maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                     <Paper
                         elevation={0}
                         sx={{
-                            p: 5,
+                            p: 4,
+                            width: '100%',
                             backgroundColor: alpha('#1a1a1a', 0.8),
                             backdropFilter: 'blur(20px)',
                             border: '1px solid rgba(255,255,255,0.1)',
@@ -95,18 +96,15 @@ const ResetPassword = () => {
                             textAlign: 'center'
                         }}
                     >
-                        <CheckCircleOutline sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
-                        <Typography variant="h4" gutterBottom sx={{ color: 'primary.main' }}>
-                            Senha Redefinida!
-                        </Typography>
-                        <Typography variant="body1" color="text.secondary" paragraph>
-                            Sua senha foi alterada com sucesso.
+                        <Typography variant="h5" gutterBottom sx={{ color: 'success.main', mb: 2 }}>
+                            🔒 Senha Alterada!
                         </Typography>
                         <Typography variant="body2" color="text.secondary" paragraph>
-                            Você já pode fazer login com sua nova senha.
+                            Sua senha foi atualizada com sucesso. Você já pode fazer login com a nova senha.
                         </Typography>
                         <Button
                             variant="contained"
+                            fullWidth
                             onClick={() => navigate('/login')}
                             sx={{ mt: 2 }}
                         >
@@ -139,11 +137,11 @@ const ResetPassword = () => {
                 },
             }}
         >
-            <Container maxWidth="sm" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+            <Container maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
                 <Paper
                     elevation={0}
                     sx={{
-                        p: 5,
+                        p: 4,
                         width: '100%',
                         backgroundColor: alpha('#1a1a1a', 0.8),
                         backdropFilter: 'blur(20px)',
@@ -151,78 +149,73 @@ const ResetPassword = () => {
                         borderRadius: 3,
                     }}
                 >
-                    <Stack spacing={4}>
-                        {/* Logo e Título */}
-                        <Box textAlign="center">
-                            <Box
-                                component="img"
-                                src={logo}
-                                alt="Logo"
-                                sx={{ height: 60, mb: 2 }}
-                            />
-                            <Typography
-                                variant="h4"
-                                gutterBottom
-                                sx={{
-                                    background: 'linear-gradient(135deg, #D9A441 0%, #E5B854 100%)',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Redefinir Senha
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Digite sua nova senha
-                            </Typography>
-                        </Box>
+                    <Box textAlign="center" mb={3}>
+                        <Box
+                            component="img"
+                            src={logo}
+                            alt="Logo"
+                            sx={{ height: 50, mb: 2 }}
+                        />
+                        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ color: 'white' }}>
+                            Redefinir Senha
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Crie uma nova senha segura para sua conta
+                        </Typography>
+                    </Box>
 
-                        {/* Mensagens de erro */}
-                        {(error || validationError) && (
-                            <Alert severity="error" onClose={() => { clearError(); setValidationError(''); }}>
-                                {error || validationError}
-                            </Alert>
-                        )}
+                    {error && (
+                        <Alert severity="error" sx={{ mb: 3 }}>
+                            {error}
+                        </Alert>
+                    )}
 
-                        {/* Formulário */}
-                        <form onSubmit={handleSubmit}>
-                            <Stack spacing={3}>
-                                <TextField
-                                    fullWidth
-                                    label="Nova Senha"
-                                    type="password"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    required
-                                    autoFocus
-                                    disabled={loading}
-                                    helperText="Mínimo 8 caracteres, com letras e números"
-                                />
+                    <form onSubmit={handleSubmit}>
+                        <TextField
+                            fullWidth
+                            label="Nova Senha"
+                            type="password"
+                            value={passwords.password}
+                            onChange={(e) => setPasswords({ ...passwords, password: e.target.value })}
+                            required
+                            disabled={loading || !token}
+                            sx={{ mb: 2 }}
+                            helperText="Mínimo 8 caracteres"
+                        />
+                        <TextField
+                            fullWidth
+                            label="Confirmar Nova Senha"
+                            type="password"
+                            value={passwords.confirmPassword}
+                            onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                            required
+                            disabled={loading || !token}
+                            sx={{ mb: 3 }}
+                        />
 
-                                <TextField
-                                    fullWidth
-                                    label="Confirmar Nova Senha"
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    required
-                                    disabled={loading}
-                                />
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            size="large"
+                            disabled={loading || !token}
+                            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LockResetOutlined />}
+                            sx={{ mb: 2 }}
+                        >
+                            {loading ? 'Atualizando...' : 'Alterar Senha'}
+                        </Button>
 
-                                <Button
-                                    type="submit"
-                                    variant="contained"
-                                    size="large"
-                                    fullWidth
-                                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LockResetOutlined />}
-                                    disabled={loading}
-                                    sx={{ py: 1.5 }}
-                                >
-                                    {loading ? 'Redefinindo...' : 'Redefinir Senha'}
-                                </Button>
-                            </Stack>
-                        </form>
-                    </Stack>
+                        <Button
+                            fullWidth
+                            variant="text"
+                            startIcon={<ArrowBackOutlined />}
+                            onClick={() => navigate('/login')}
+                            disabled={loading}
+                            sx={{ color: 'text.secondary' }}
+                        >
+                            Cancelar
+                        </Button>
+                    </form>
                 </Paper>
             </Container>
         </Box>

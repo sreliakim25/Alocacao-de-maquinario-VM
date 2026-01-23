@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../config/database');
 const authMiddleware = require('../middleware/auth');
+const permissionMiddleware = require('../middleware/permissions');
 
 // GET /api/maquinas - Listar todas as máquinas
 router.get('/', authMiddleware, async (req, res) => {
@@ -44,8 +45,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-// POST /api/maquinas - Criar nova máquina (Supervisor+)
-router.post('/', authMiddleware, async (req, res) => {
+// POST /api/maquinas - Criar nova máquina (Suprimentos+)
+router.post('/', authMiddleware, permissionMiddleware(['Suprimentos']), async (req, res) => {
     try {
         // Frontend sends: nome, tipo, placa, operador (nome), setor, fornecedor, foto
         const { nome, tipo, placa, operador, setor, fornecedor, foto } = req.body;
@@ -81,8 +82,8 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
-// PUT /api/maquinas/:id - Atualizar máquina (Supervisor+)
-router.put('/:id', authMiddleware, async (req, res) => {
+// PUT /api/maquinas/:id - Atualizar máquina (Suprimentos+)
+router.put('/:id', authMiddleware, permissionMiddleware(['Suprimentos']), async (req, res) => {
     try {
         const { id } = req.params;
         const { nome, tipo, placa, operador, setor, fornecedor, foto } = req.body;
@@ -124,7 +125,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/maquinas/:id - Deletar máquina (soft delete)
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, permissionMiddleware(['Suprimentos']), async (req, res) => {
     try {
         const { id } = req.params;
 

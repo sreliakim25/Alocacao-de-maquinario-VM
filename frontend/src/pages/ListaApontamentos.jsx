@@ -34,6 +34,15 @@ import useApontamentoStore from '../store/apontamentoStore';
 import useAuthStore from '../store/authStore';
 import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Button as MuiButton
+} from '@mui/material';
 
 const StatusChip = ({ status }) => {
     let color = 'default';
@@ -92,6 +101,11 @@ const ListaApontamentos = () => {
     const { user } = useAuthStore();
     const navigate = useNavigate();
 
+    // Rejection State
+    const [openRejectDialog, setOpenRejectDialog] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [itemsToReject, setItemsToReject] = useState([]);
+
     // Fetch data on mount
     useEffect(() => {
         fetchApontamentos();
@@ -104,7 +118,7 @@ const ListaApontamentos = () => {
         if (!user) return [];
         // Check if user has a privileged role
         const userRole = (user.role || '').toLowerCase();
-        const privilegedKeywords = ['admin', 'supervisor', 'desenvolvedor', 'gerente', 'líder', 'master'];
+        const privilegedKeywords = ['admin', 'supervisor', 'desenvolvedor', 'gerente', 'líder', 'master', 'suprimentos'];
 
         const isPrivileged = privilegedKeywords.some(keyword => userRole.includes(keyword));
 
@@ -143,8 +157,69 @@ const ListaApontamentos = () => {
     };
 
     const handleBatchLiberar = (items) => {
+        // Determine next status based on Role
+        // Supervisor -> pendente_lider
+        // Líder -> aprovado
+        // Apontador -> liberado_apontador
+
+        let nextStatus = 'liberado_apontador';
+        const role = (user?.role || '').toLowerCase();
+
+        if (role.includes('supervisor')) nextStatus = 'pendente_lider';
+        else if (role.includes('líder') || role.includes('lider')) nextStatus = 'aprovado'; // Final approval
+
         const ids = items.map(i => i.id);
-        updateStatusBatch(ids, 'liberado_apontador');
+        updateStatusBatch(ids, nextStatus);
+    };
+
+    const [rejectItem, setRejectItem] = useState(null); // Stores the specific line item being rejected
+
+    // Updated Logic: Open dialog for a specific line item
+    const handleOpenRejectLine = (item) => {
+        setRejectItem(item);
+        setRejectReason('');
+        setOpenRejectDialog(true);
+    };
+
+    const handleConfirmReject = () => {
+        if (!rejectReason.trim() || !rejectItem) return;
+
+        // The ID needed for update is (usually) the Header ID or Line ID depending on API.
+        // updateStatusBatch usually takes Header IDs if status is unified.
+        // But our store logic iterates "state.apontamentos.find(a => a.id === id)" so 'id' is Line ID.
+        // The API `updateStatus` assumes Header ID though?
+        // Wait, `updateStatusBatch` logic:
+        // `const item = state.apontamentos.find(a => a.id === id);` -> this finds the flattened item by Line ID.
+        // `headerIds.add(item.apontamentoId);`
+        // So passing the Line Id (rejectItem.id) is correct for finding the header.
+
+        // We append the Line ID to the reason so parsing works later.
+        const formattedReason = `[ID:${rejectItem.id}] ${rejectReason}`;
+
+        updateStatusBatch([rejectItem.id], 'em_apontamento', { observacoes_reprovacao: formattedReason });
+
+
+        setOpenRejectDialog(false);
+        setRejectItem(null);
+    };
+
+    const handleApproveLine = (item) => {
+        let nextStatus = 'liberado_apontador';
+        const role = (user?.role || '').toLowerCase();
+
+        if (role.includes('supervisor')) nextStatus = 'pendente_lider';
+        else if (role.includes('líder') || role.includes('lider')) nextStatus = 'aprovado';
+
+        updateStatusBatch([item.id], nextStatus);
+    };
+
+    const canActOnRow = (status) => {
+        const role = (user?.role || '').toLowerCase();
+        if (role.includes('admin') || role.includes('dev')) return true;
+        if (role.includes('supervisor') && status === 'liberado_apontador') return true;
+        if (role.includes('líder') || role.includes('lider')) return (status === 'pendente_lider');
+        if (role.includes('suprimentos') && status === 'aprovado') return true;
+        return false;
     };
 
     return (
@@ -204,7 +279,13 @@ const ListaApontamentos = () => {
                                 // Assume all items in this group have same status context for the purpose of the header action, 
                                 // OR we just pick the first one to determine actions.
                                 const firstItem = items[0];
-                                const canEdit = (firstItem.status === 'em_apontamento' || firstItem.status.includes('pendente'));
+                                // Determine if user can perform actions (Edit, Approve, Reject)
+                                const canEdit = (
+                                    firstItem.status === 'em_apontamento' ||
+                                    firstItem.status.includes('pendente') ||
+                                    firstItem.status === 'liberado_apontador' ||
+                                    firstItem.status === 'aprovado'
+                                );
 
                                 return (
                                     <Paper key={machineName} sx={{ mb: 3, overflow: 'hidden', borderLeft: '4px solid #D9A441' }}>
@@ -221,28 +302,37 @@ const ListaApontamentos = () => {
                                                 <Stack direction="row" spacing={1}>
                                                     {canEdit && (
                                                         <>
-                                                            <Tooltip title="Editar Boletim Completo">
-                                                                <Button
-                                                                    variant="outlined"
-                                                                    size="small"
-                                                                    startIcon={<Edit />}
-                                                                    onClick={() => navigate(`/apontamento/${firstItem.id}`)}
-                                                                    sx={{ borderColor: 'rgba(255,255,255,0.2)', color: 'text.primary' }}
-                                                                >
-                                                                    Editar
-                                                                </Button>
-                                                            </Tooltip>
-                                                            <Tooltip title="Liberar Boletim para Conferência">
-                                                                <Button
-                                                                    variant="contained"
-                                                                    size="small"
-                                                                    color="success"
-                                                                    endIcon={<Send />}
-                                                                    onClick={() => handleBatchLiberar(items)}
-                                                                >
-                                                                    Liberar
-                                                                </Button>
-                                                            </Tooltip>
+                                                            {(user?.role?.includes('Apontador') || user?.role?.includes('Administrador') || user?.role?.includes('Desenvolvedor')) && (
+                                                                <Tooltip title="Editar Boletim Completo">
+                                                                    <Button
+                                                                        variant="outlined"
+                                                                        size="small"
+                                                                        startIcon={<Edit />}
+                                                                        onClick={() => navigate(`/apontamento/${firstItem.id}`)}
+                                                                        sx={{ borderColor: 'rgba(255,255,255,0.2)', color: 'text.primary' }}
+                                                                    >
+                                                                        Editar
+                                                                    </Button>
+                                                                </Tooltip>
+                                                            )}
+
+                                                            {/* Aprovar Button - Hidden for Supervisor/Leader/Suprimentos in Header (Batch) */}
+                                                            {/* Only Apontador (or Admin) sees this for 'em_apontamento' */}
+                                                            {(user?.role?.includes('Apontador') || user?.role?.includes('Administrador') || user?.role?.includes('Desenvolvedor')
+                                                                || (!user?.role?.includes('Supervisor') && !user?.role?.includes('Lider') && !user?.role?.includes('Líder') && !user?.role?.includes('Suprimentos')))
+                                                                && firstItem.status === 'em_apontamento' && (
+                                                                    <Tooltip title="Liberar Boletim para Aprovação">
+                                                                        <Button
+                                                                            variant="contained"
+                                                                            size="small"
+                                                                            color="success"
+                                                                            endIcon={<Send />}
+                                                                            onClick={() => handleBatchLiberar(items)}
+                                                                        >
+                                                                            Liberar
+                                                                        </Button>
+                                                                    </Tooltip>
+                                                                )}
                                                         </>
                                                     )}
                                                 </Stack>
@@ -263,6 +353,9 @@ const ListaApontamentos = () => {
                                                         <TableCell>Horário</TableCell>
                                                         <TableCell align="center">Total</TableCell>
                                                         <TableCell>Pendências</TableCell>
+                                                        {(user?.role?.includes('Supervisor') || user?.role?.includes('Lider') || user?.role?.includes('Líder') || user?.role?.includes('Suprimentos') || user?.role?.includes('Administrador') || user?.role?.includes('Desenvolvedor')) && (
+                                                            <TableCell align="center">Ações</TableCell>
+                                                        )}
                                                     </TableRow>
                                                 </TableHead>
                                                 <TableBody>
@@ -309,6 +402,34 @@ const ListaApontamentos = () => {
                                                                     <Typography variant="caption" color="text.disabled">-</Typography>
                                                                 )}
                                                             </TableCell>
+                                                            {(canActOnRow(row.status)) && (
+                                                                <TableCell align="center">
+                                                                    <Stack direction="row" spacing={0.5} justifyContent="center">
+                                                                        {/* Approve Button (Supervisor/Leader only) */}
+                                                                        {(user?.role?.includes('Supervisor') || user?.role?.includes('Lider') || user?.role?.includes('Líder')) && (
+                                                                            <Tooltip title="Aprovar">
+                                                                                <IconButton
+                                                                                    size="small"
+                                                                                    color="success"
+                                                                                    onClick={() => handleApproveLine(row)}
+                                                                                >
+                                                                                    <CheckCircle fontSize="small" />
+                                                                                </IconButton>
+                                                                            </Tooltip>
+                                                                        )}
+
+                                                                        <Tooltip title="Reprovar">
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                color="error"
+                                                                                onClick={() => handleOpenRejectLine(row)}
+                                                                            >
+                                                                                <ErrorOutline fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    </Stack>
+                                                                </TableCell>
+                                                            )}
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
@@ -320,7 +441,8 @@ const ListaApontamentos = () => {
                         </Box>
                     ))}
                 </Box>
-            )}
+            )
+            }
             {/* Floating Action Button for New Appointment */}
             <Tooltip title="Novo Apontamento">
                 <IconButton
@@ -341,7 +463,35 @@ const ListaApontamentos = () => {
                     <AddCircleOutline sx={{ fontSize: 32 }} />
                 </IconButton>
             </Tooltip>
-        </Box>
+
+            {/* Rejection Dialog */}
+            <Dialog open={openRejectDialog} onClose={() => setOpenRejectDialog(false)}>
+                <DialogTitle>Reprovar Apontamento</DialogTitle>
+                <DialogContent sx={{ width: 400 }}>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                        Por favor, informe o motivo da reprovação. O apontamento retornará para "Em Edição".
+                    </Typography>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Motivo da Reprovação"
+                        type="text"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        variant="outlined"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenRejectDialog(false)}>Cancelar</Button>
+                    <Button onClick={handleConfirmReject} color="error" variant="contained">
+                        Confirmar Reprovação
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box >
     );
 };
 

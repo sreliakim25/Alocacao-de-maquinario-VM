@@ -102,10 +102,10 @@ export const usuariosAPI = {
         });
     },
 
-    updateRole: async (id, nivel_acesso) => {
+    updateRole: async (id, nivel_acesso, conta_id) => {
         return await apiRequest(`/api/usuarios/${id}/role`, {
             method: 'PUT',
-            body: JSON.stringify({ nivel_acesso }),
+            body: JSON.stringify({ nivel_acesso, conta_id }),
         });
     },
 
@@ -289,10 +289,10 @@ export const apontamentosAPI = {
         });
     },
 
-    updateStatus: async (id, status) => {
+    updateStatus: async (id, status, extraData = {}) => {
         return await apiRequest(`/api/apontamentos/${id}/status`, {
             method: 'PUT',
-            body: JSON.stringify({ status }),
+            body: JSON.stringify({ status, ...extraData }),
         });
     },
 

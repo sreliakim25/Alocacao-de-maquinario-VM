@@ -10,7 +10,7 @@ const roleHierarchy = {
     'Apontador': 2
 };
 
-function permissionMiddleware(requiredRole) {
+function permissionMiddleware(allowedRoles) {
     return (req, res, next) => {
         const userRole = req.userRole;
 
@@ -18,13 +18,18 @@ function permissionMiddleware(requiredRole) {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
-        const userLevel = roleHierarchy[userRole] || 0;
-        const requiredLevel = roleHierarchy[requiredRole] || 0;
+        // Se allowedRoles for uma string (único papel), converte para array
+        const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
 
-        if (userLevel < requiredLevel) {
+        // Se 'Desenvolvedor' ou 'Administrador' não estiverem explicítamente inclusos, 
+        // vamos permitir que eles acessem tudo por padrão? 
+        // Pela matriz, Admin/Dev têm acesso a tudo. Vamos garantir isso.
+        const effectiveRoles = [...roles, 'Administrador', 'Desenvolvedor'];
+
+        if (!effectiveRoles.includes(userRole)) {
             return res.status(403).json({
                 error: 'Permissão insuficiente',
-                required: requiredRole,
+                required: roles,
                 current: userRole
             });
         }

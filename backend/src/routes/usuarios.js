@@ -8,7 +8,7 @@ const permissionMiddleware = require('../middleware/permissions');
 router.get('/', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
         const query = `
-            SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em
+            SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em, conta_id
             FROM usuarios
             ORDER BY criado_em DESC
         `;
@@ -26,7 +26,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         const { id } = req.params;
 
         // Usuários comuns só podem ver seu próprio perfil
-        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor') {
+        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
@@ -49,14 +49,43 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 });
 
+// POST /api/usuarios - Criar novo usuário (Admin/Dev)
+router.post('/', authMiddleware, permissionMiddleware(['Administrador', 'Desenvolvedor']), async (req, res) => {
+    try {
+        const { nome, email, telefone, senha, nivel_acesso, conta_id } = req.body;
+
+        if (!nome || !email || !senha || !nivel_acesso) {
+            return res.status(400).json({ error: 'Nome, email, senha e nível de acesso são obrigatórios' });
+        }
+
+        const bcrypt = require('bcrypt');
+        const senha_hash = await bcrypt.hash(senha, 10);
+
+        const query = `
+            INSERT INTO usuarios (nome, email, telefone, senha_hash, nivel_acesso, conta_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, nome, email, nivel_acesso, criado_em
+        `;
+        const result = await db.query(query, [nome, email, telefone, senha_hash, nivel_acesso, conta_id]);
+        res.status(201).json(result.rows[0]);
+
+    } catch (error) {
+        console.error('Erro ao criar usuário:', error);
+        if (error.code === '23505') { // Unique violation
+            return res.status(409).json({ error: 'Email já cadastrado' });
+        }
+        res.status(500).json({ error: 'Erro ao criar usuário: ' + error.message });
+    }
+});
+
 // PUT /api/usuarios/:id - Atualizar usuário
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, telefone, foto_url, senha } = req.body;
+        const { nome, email, telefone, foto_url, senha } = req.body;
 
         // Usuários comuns só podem editar seu próprio perfil
-        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor') {
+        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
@@ -67,6 +96,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
         if (nome) {
             updates.push(`nome = $${counter++}`);
             values.push(nome);
+        }
+        if (email) {
+            updates.push(`email = $${counter++}`);
+            values.push(email);
         }
         if (telefone !== undefined) {
             updates.push(`telefone = $${counter++}`);
@@ -97,17 +130,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     } catch (error) {
         console.error('Erro ao atualizar usuário:', error);
-        res.status(500).json({ error: 'Erro ao atualizar usuário' });
+        res.status(500).json({ error: 'Erro ao atualizar usuário: ' + error.message });
     }
 });
 
-// PUT /api/usuarios/:id/role - Alterar permissão (Gerente+)
-router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
+// PUT /api/usuarios/:id/role - Alterar nível/obra (Admin/Dev)
+router.put('/:id/role', authMiddleware, permissionMiddleware(['Administrador', 'Desenvolvedor']), async (req, res) => {
     try {
         const { id } = req.params;
-        const { nivel_acesso } = req.body;
+        const { nivel_acesso, conta_id } = req.body;
 
-        const validRoles = ['Apontador', 'Supervisor', 'Líder', 'Suprimentos', 'Gerente', 'Desenvolvedor'];
+        const validRoles = ['Apontador', 'Supervisor', 'Líder', 'Suprimentos', 'Gerente', 'Desenvolvedor', 'Administrador'];
         if (!validRoles.includes(nivel_acesso)) {
             return res.status(400).json({ error: 'Nível de acesso inválido' });
         }
@@ -117,18 +150,32 @@ router.put('/:id/role', authMiddleware, permissionMiddleware('Gerente'), async (
             return res.status(403).json({ error: 'Não é possível alterar sua própria permissão' });
         }
 
-        const query = `
-            UPDATE usuarios 
-            SET nivel_acesso = $1, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = $2
-        `;
-        await db.query(query, [nivel_acesso, id]);
+        let query;
+        let params;
+
+        if (conta_id !== undefined) {
+            query = `
+                UPDATE usuarios 
+                SET nivel_acesso = $1, conta_id = $2, atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = $3
+            `;
+            params = [nivel_acesso, conta_id, id];
+        } else {
+            query = `
+                UPDATE usuarios 
+                SET nivel_acesso = $1, atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = $2
+            `;
+            params = [nivel_acesso, id];
+        }
+
+        await db.query(query, params);
 
         res.json({ message: 'Permissão atualizada com sucesso' });
 
     } catch (error) {
         console.error('Erro ao atualizar permissão:', error);
-        res.status(500).json({ error: 'Erro ao atualizar permissão' });
+        res.status(500).json({ error: 'Erro ao atualizar permissão: ' + error.message });
     }
 });
 

@@ -120,7 +120,8 @@ const useAuthStore = create(
                     id: 'dev-bypass',
                     name: 'Desenvolvedor',
                     email: 'dev@bypass.com',
-                    role: 'Desenvolvedor'
+                    role: 'Desenvolvedor',
+                    conta_id: null // Dev vê tudo
                 },
                 isAuthenticated: true,
                 isDevelopmentBypass: true

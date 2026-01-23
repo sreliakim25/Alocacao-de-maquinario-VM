@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../config/database');
 const authMiddleware = require('../middleware/auth');
+const permissionMiddleware = require('../middleware/permissions');
 
 // ========== IMPORTAÇÃO MESTRE ==========
 
@@ -10,7 +11,7 @@ const authMiddleware = require('../middleware/auth');
 // Função auxiliar para normalizar strings
 const normalize = (str) => str ? str.toString().trim() : '';
 
-router.post('/import-master', authMiddleware, async (req, res) => {
+router.post('/import-master', authMiddleware, permissionMiddleware([]), async (req, res) => {
     const client = await db.pool.connect();
     try {
         let { dados, dryRun, importType } = req.body; // importType: 'empreendimentos' | 'supervisores'
@@ -203,6 +204,8 @@ router.post('/import-master', authMiddleware, async (req, res) => {
 router.get('/vilas', authMiddleware, async (req, res) => {
     try {
         const { ugb_id } = req.query;
+        const { conta_id, role } = req.user;
+
         let query = `
             SELECT v.*, u.nome as ugb_nome 
             FROM vilas v
@@ -210,9 +213,14 @@ router.get('/vilas', authMiddleware, async (req, res) => {
             WHERE v.ativo = true
         `;
         const params = [];
+        let counter = 1;
 
-        if (ugb_id) {
-            query += ' AND (v.ugb_id = $1 OR v.ugb_id IS NULL)';
+        // Enforce segregation
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            query += ` AND v.ugb_id = $${counter++}`;
+            params.push(conta_id);
+        } else if (ugb_id) {
+            query += ` AND (v.ugb_id = $${counter++} OR v.ugb_id IS NULL)`;
             params.push(ugb_id);
         }
 
@@ -225,7 +233,7 @@ router.get('/vilas', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/vilas', authMiddleware, async (req, res) => {
+router.post('/vilas', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { nome, ugb_id } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -238,7 +246,7 @@ router.post('/vilas', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/vilas/:id', authMiddleware, async (req, res) => {
+router.delete('/vilas/:id', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { id } = req.params;
         await db.query('UPDATE vilas SET ativo = false WHERE id = $1', [id]);
@@ -262,7 +270,7 @@ router.get('/sub-etapas', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/sub-etapas', authMiddleware, async (req, res) => {
+router.post('/sub-etapas', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { nome } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -275,7 +283,7 @@ router.post('/sub-etapas', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/sub-etapas/:id', authMiddleware, async (req, res) => {
+router.delete('/sub-etapas/:id', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { id } = req.params;
         await db.query('UPDATE sub_etapas SET ativo = false WHERE id = $1', [id]);
@@ -313,7 +321,7 @@ router.get('/tarefas', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/tarefas', authMiddleware, async (req, res) => {
+router.post('/tarefas', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { sub_etapa_id, nome } = req.body;
         if (!sub_etapa_id || !nome) return res.status(400).json({ error: 'sub_etapa_id e nome obrigatórios' });
@@ -326,7 +334,7 @@ router.post('/tarefas', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/tarefas/:id', authMiddleware, async (req, res) => {
+router.delete('/tarefas/:id', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { id } = req.params;
         await db.query('UPDATE tarefas SET ativo = false WHERE id = $1', [id]);
@@ -350,7 +358,7 @@ router.get('/ugbs', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/ugbs', authMiddleware, async (req, res) => {
+router.post('/ugbs', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { nome } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -363,7 +371,7 @@ router.post('/ugbs', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/ugbs/:id', authMiddleware, async (req, res) => {
+router.delete('/ugbs/:id', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { id } = req.params;
         await db.query('UPDATE ugbs SET ativo = false WHERE id = $1', [id]);
@@ -379,6 +387,8 @@ router.delete('/ugbs/:id', authMiddleware, async (req, res) => {
 router.get('/supervisores', authMiddleware, async (req, res) => {
     try {
         const { ugb_id } = req.query;
+        const { conta_id, role } = req.user;
+
         let query = `
             SELECT s.*, u.nome as ugb_nome, l.nome as lider_nome
             FROM supervisores s
@@ -387,9 +397,14 @@ router.get('/supervisores', authMiddleware, async (req, res) => {
             WHERE s.ativo = true
         `;
         const params = [];
+        let counter = 1;
 
-        if (ugb_id) {
-            query += ' AND s.ugb_id = $1';
+        // Enforce segregation
+        if (conta_id && role !== 'Administrador' && role !== 'Desenvolvedor') {
+            query += ` AND s.ugb_id = $${counter++}`;
+            params.push(conta_id);
+        } else if (ugb_id) {
+            query += ` AND s.ugb_id = $${counter++}`;
             params.push(ugb_id);
         }
 
@@ -402,7 +417,7 @@ router.get('/supervisores', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/supervisores', authMiddleware, async (req, res) => {
+router.post('/supervisores', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { nome, cargo, ugb_id, lider_id } = req.body;
         if (!nome) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -418,7 +433,7 @@ router.post('/supervisores', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/supervisores/:id', authMiddleware, async (req, res) => {
+router.delete('/supervisores/:id', authMiddleware, permissionMiddleware([]), async (req, res) => {
     try {
         const { id } = req.params;
         await db.query('UPDATE supervisores SET ativo = false WHERE id = $1', [id]);
