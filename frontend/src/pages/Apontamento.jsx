@@ -339,54 +339,62 @@ const Apontamento = () => {
         }
     };
 
-    const handleConfirmSubmit = () => {
-        const baseApontamento = {
-            data_apontamento: headerData.data, // Backend Expects this key
-            maquina_id: headerData.maquinaId, // Backend ID
+    const handleConfirmSubmit = async () => {
+        try {
+            const baseApontamento = {
+                data_apontamento: headerData.data, // Backend Expects this key
+                maquina_id: headerData.maquinaId, // Backend ID
 
-            // Legacy for store flatten:
-            data: headerData.data,
-            maquina: headerData.maquina,
+                // Legacy for store flatten:
+                data: headerData.data,
+                maquina: headerData.maquina,
 
-            operador: headerData.operador,
+                operador: headerData.operador,
 
-            // Workflow fields
-            status: isEditMode ? statusData : 'em_apontamento',
-            apontadorId: user?.id || 'anon',
-            observacoes: '', // We don't have header observation in UI yet, send empty
-            ultimaPendencia: ''
-        };
-
-        // Create list of items from rows
-        const itemsToSave = rows.map(row => {
-            // Generate temporary ID if new (frontend only handling)
-            // Store will handle save
-            const isTempId = (typeof row.id === 'string' && row.id.startsWith('temp-'));
-            const rowId = isTempId
-                ? Math.random().toString(36).substr(2, 9)
-                : (isEditMode ? row.id : Math.random().toString(36).substr(2, 9));
-
-            return {
-                ...baseApontamento, // Carries header info
-                id: rowId,
-                // Row specific (Using Frontend Names for Store Mapping)
-                vila: row.vila,
-                etapa: row.etapa,
-                subEtapa: row.subEtapa,
-                conta: row.conta,
-                // subConta not tracked in main row state? 
-                supervisor: row.supervisor, // Name
-
-                inicio: row.inicio,
-                fim: row.fim,
-                observacao: row.observacao
+                // Workflow fields
+                status: isEditMode ? statusData : 'em_apontamento',
+                apontadorId: user?.id || 'anon',
+                observacoes: '', // We don't have header observation in UI yet, send empty
+                ultimaPendencia: ''
             };
-        });
 
-        useApontamentoStore.getState().syncApontamentosBatch(originalContext, itemsToSave);
+            // Create list of items from rows
+            const itemsToSave = rows.map(row => {
+                // Generate temporary ID if new (frontend only handling)
+                // Store will handle save
+                const isTempId = (typeof row.id === 'string' && row.id.startsWith('temp-'));
+                const rowId = isTempId
+                    ? Math.random().toString(36).substr(2, 9)
+                    : (isEditMode ? row.id : Math.random().toString(36).substr(2, 9));
 
-        setOpenConfirmDialog(false);
-        navigate('/lista-apontamentos');
+                return {
+                    ...baseApontamento, // Carries header info
+                    id: rowId,
+                    // Row specific (Using Frontend Names for Store Mapping)
+                    vila: row.vila,
+                    etapa: row.etapa,
+                    subEtapa: row.subEtapa,
+                    conta: row.conta,
+                    // subConta not tracked in main row state? 
+                    supervisor: row.supervisor, // Name
+
+                    inicio: row.inicio,
+                    fim: row.fim,
+                    observacao: row.observacao
+                };
+            });
+
+            await useApontamentoStore.getState().syncApontamentosBatch(originalContext, itemsToSave);
+
+            setOpenConfirmDialog(false);
+            navigate('/lista-apontamentos');
+        } catch (error) {
+            console.error("Erro ao salvar:", error);
+            // Close confirm dialog to show error (could also show error IN dialog)
+            setOpenConfirmDialog(false);
+            setValidationErrors([`Erro ao salvar: ${error.message || 'Erro desconhecido'}`]);
+            setOpenErrorDialog(true);
+        }
     };
 
     const getPeriodo = (time) => {
