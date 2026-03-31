@@ -17,9 +17,13 @@ async function apiRequest(endpoint, options = {}) {
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-        // Se não autenticado, limpar token e redirecionar
+        // Se não autenticado, limpar AMBOS token e estado Zustand
         if (response.status === 401) {
+            // Limpar token JWT
             localStorage.removeItem('auth-token');
+            // Limpar estado do Zustand (auth-storage) para sincronizar
+            localStorage.removeItem('auth-storage');
+            // Redirecionar para login
             window.location.href = '/login';
             throw new Error('Não autorizado');
         }
