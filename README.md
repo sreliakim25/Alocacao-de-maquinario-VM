@@ -51,6 +51,32 @@ npm run dev
 
 O aplicativo estará disponível em `http://localhost:3005`
 
+### Credenciais de Acesso (Desenvolvimento)
+
+Ao popular o banco de dados inicial (verifique o arquivo de seeds), os seguintes usuários são criados para testes:
+
+- **Admin / Desenvolvedor**
+  - Email: `admin@vianaemoura.com`
+  - Senha: `admin123`
+- **Desenvolvedor Master**
+  - Email: `desenvolvedor@vianaemora.com.br`
+  - Senha: `Dev.vm2026@`
+- **Administrador**
+  - Email: `adm.processos@vianaemoura.com.br`
+  - Senha: `123456`
+- **Supervisor**
+  - Email: `supervisor@vianaemoura.com.br`
+  - Senha: `123456`
+- **Líder**
+  - Email: `lider@vianaemoura.com.br`
+  - Senha: `123456`
+- **Suprimentos**
+  - Email: `suprimentos@vianaemoura.com.br`
+  - Senha: `123456`
+- **Apontador**
+  - Email: `apontador@vianaemoura.com.br`
+  - Senha: `123456`
+
 ### Scripts Disponíveis
 
 - `npm run dev` - Inicia servidor de desenvolvimento
