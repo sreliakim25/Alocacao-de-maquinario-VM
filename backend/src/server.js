@@ -6,22 +6,26 @@ require('./config/supabase'); // inicializa cliente Supabase
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middlewares
+// Origens permitidas
+const allowedOrigins = [
+    // Desenvolvimento local
+    /^http:\/\/localhost:\d+$/,
+    // URL de produção principal (ex: https://meuapp.vercel.app)
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+    // Qualquer preview/branch deploy do Vercel do mesmo projeto
+    ...(process.env.VERCEL_PROJECT ? [new RegExp(`^https:\\/\\/${process.env.VERCEL_PROJECT}-.*\\.vercel\\.app$`)] : []),
+];
+
 app.use(cors({
     origin: function (origin, callback) {
-        // Permitir requisições sem origin (como apps Mobile ou curl)
+        // Permitir requisições sem origin (apps móveis, curl, Postman)
         if (!origin) return callback(null, true);
 
-        // Permitir localhost em várias portas (desenvolvimento)
-        if (origin.match(/^http:\/\/localhost:\d+$/)) {
-            return callback(null, true);
-        }
+        const allowed = allowedOrigins.some(o =>
+            o instanceof RegExp ? o.test(origin) : o === origin
+        );
 
-        // Permitir domínio de produção (se definido)
-        if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-            return callback(null, true);
-        }
-
+        if (allowed) return callback(null, true);
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true
