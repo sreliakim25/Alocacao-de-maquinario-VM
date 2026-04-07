@@ -7,7 +7,6 @@ const useAuthStore = create(
         (set, get) => ({
             user: null,
             isAuthenticated: false,
-            isDevelopmentBypass: false,
             error: null,
             loading: false,
 
@@ -24,7 +23,6 @@ const useAuthStore = create(
                     set({
                         user: data.user,
                         isAuthenticated: true,
-                        isDevelopmentBypass: false,
                         loading: false,
                         error: null,
                     });
@@ -110,26 +108,12 @@ const useAuthStore = create(
                 }
             },
 
-            // Login bypass para desenvolvimento
-            loginBypass: () => set({
-                user: {
-                    id: 'dev-bypass',
-                    name: 'Desenvolvedor',
-                    email: 'dev@bypass.com',
-                    role: 'Desenvolvedor',
-                    conta_id: null // Dev vê tudo
-                },
-                isAuthenticated: true,
-                isDevelopmentBypass: true
-            }),
-
             // Logout
             logout: () => {
                 authAPI.logout();
                 set({
                     user: null,
                     isAuthenticated: false,
-                    isDevelopmentBypass: false,
                     error: null,
                 });
             },

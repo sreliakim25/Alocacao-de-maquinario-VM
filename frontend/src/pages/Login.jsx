@@ -12,7 +12,7 @@ import {
     Link,
     CircularProgress
 } from '@mui/material';
-import { LoginOutlined, DeveloperMode, Construction } from '@mui/icons-material';
+import { LoginOutlined, Construction } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import logo from '../assets/logo.png';
@@ -22,8 +22,7 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
-    const { login, loginBypass, isDevelopmentBypass, error, loading, clearError } = useAuthStore();
-    const isDevelopment = import.meta.env.DEV;
+    const { login, error, loading, clearError } = useAuthStore();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -33,11 +32,6 @@ const Login = () => {
         if (success) {
             navigate('/');
         }
-    };
-
-    const handleBypass = () => {
-        loginBypass();
-        navigate('/');
     };
 
     return (
@@ -122,19 +116,6 @@ const Login = () => {
                                 </Typography>
                             </Box>
                         </Box>
-
-                        {isDevelopmentBypass && (
-                            <Alert
-                                severity="warning"
-                                icon={<DeveloperMode />}
-                                sx={{
-                                    backgroundColor: alpha('#D9A441', 0.1),
-                                    border: '1px solid rgba(217, 164, 65, 0.3)',
-                                }}
-                            >
-                                <strong>Modo Desenvolvimento</strong> - Bypass de autenticação ativo
-                            </Alert>
-                        )}
 
                         {/* Mensagem de erro */}
                         {error && (
@@ -224,49 +205,6 @@ const Login = () => {
                             </Stack>
                         </form>
 
-                        {/* Botão de Acesso Demo - Sempre Visível */}
-                        <Box sx={{ pt: 2, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                            <Button
-                                variant="outlined"
-                                color="info"
-                                size="large"
-                                fullWidth
-                                onClick={handleBypass}
-                                sx={{
-                                    py: 1.5,
-                                    borderWidth: 2,
-                                    '&:hover': {
-                                        borderWidth: 2,
-                                        backgroundColor: alpha('#2196f3', 0.1),
-                                    }
-                                }}
-                            >
-                                🚀 Acesso Demo - Explorar Sistema
-                            </Button>
-                            <Typography
-                                variant="caption"
-                                display="block"
-                                textAlign="center"
-                                sx={{ mt: 1.5 }}
-                                color="text.secondary"
-                            >
-                                Acesso rápido para conhecer a ferramenta
-                            </Typography>
-                        </Box>
-
-                        {/* Bypass de Desenvolvimento (apenas dev) */}
-                        {isDevelopment && (
-                            <Box sx={{ pt: 2, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                                <Typography
-                                    variant="caption"
-                                    display="block"
-                                    textAlign="center"
-                                    color="text.secondary"
-                                >
-                                    ⚡ Modo Desenvolvimento Ativo
-                                </Typography>
-                            </Box>
-                        )}
                     </Stack>
                 </Paper>
             </Container>
