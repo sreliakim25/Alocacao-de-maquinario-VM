@@ -22,6 +22,7 @@ import Cadastros from './pages/Cadastros';
 // Layout & Components
 import MainLayout from './components/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { PWAInstallPrompt, PWAUpdatePrompt } from './components/PWAPrompt';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -83,6 +84,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      <PWAInstallPrompt />
+      <PWAUpdatePrompt />
     </ThemeProvider>
   );
 }
