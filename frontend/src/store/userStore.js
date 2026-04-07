@@ -56,6 +56,27 @@ const useUserStore = create((set, get) => ({
         }
     },
 
+    // Aprovar cadastro pendente — gera senha provisória e envia email
+    approveUser: async (userId) => {
+        set({ loading: true, error: null });
+        try {
+            const result = await usuariosAPI.approve(userId);
+
+            // Atualizar lista local
+            set(state => ({
+                users: state.users.map(u =>
+                    u.id === userId ? { ...u, ativo: true } : u
+                ),
+                loading: false
+            }));
+
+            return { success: true, provisionalPassword: result.provisionalPassword };
+        } catch (error) {
+            set({ error: error.message, loading: false });
+            return { success: false, error: error.message };
+        }
+    },
+
     // Resetar senha do usuário (Gera senha temporária)
     resetUserPassword: async (userId) => {
         set({ loading: true, error: null });

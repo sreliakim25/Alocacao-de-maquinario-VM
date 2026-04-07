@@ -3,13 +3,11 @@ require('dotenv').config();
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    },
-    connectionTimeoutMillis: 30000, // 30 segundos
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 30000,
     idleTimeoutMillis: 30000,
     keepAlive: true,
-    max: 20 // Increase max connections slightly if needed
+    max: 20
 });
 
 pool.on('connect', () => {

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     foto_url TEXT,
     nivel_acesso TEXT CHECK(nivel_acesso IN ('Apontador', 'Supervisor', 'Líder', 'Suprimentos', 'Gerente', 'Desenvolvedor')) NOT NULL DEFAULT 'Apontador',
     ativo BOOLEAN DEFAULT true,
+    conta_id INTEGER,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -20,6 +21,13 @@ CREATE TABLE IF NOT EXISTS maquinas (
     placa TEXT,
     ativo BOOLEAN DEFAULT true,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabela de Contas (UGB) — deve vir antes de vilas
+CREATE TABLE IF NOT EXISTS contas (
+    id SERIAL PRIMARY KEY,
+    nome TEXT NOT NULL,
+    ativo BOOLEAN DEFAULT true
 );
 
 -- Tabela de Vilas
@@ -41,13 +49,6 @@ CREATE TABLE IF NOT EXISTS etapas (
 CREATE TABLE IF NOT EXISTS sub_etapas (
     id SERIAL PRIMARY KEY,
     etapa_id INTEGER NOT NULL REFERENCES etapas(id),
-    nome TEXT NOT NULL,
-    ativo BOOLEAN DEFAULT true
-);
-
--- Tabela de Contas
-CREATE TABLE IF NOT EXISTS contas (
-    id SERIAL PRIMARY KEY,
     nome TEXT NOT NULL,
     ativo BOOLEAN DEFAULT true
 );
@@ -93,4 +94,3 @@ CREATE INDEX IF NOT EXISTS idx_apontamentos_data ON apontamentos(data_apontament
 CREATE INDEX IF NOT EXISTS idx_apontamentos_status ON apontamentos(status);
 CREATE INDEX IF NOT EXISTS idx_apontamentos_apontador ON apontamentos(apontador_id);
 CREATE INDEX IF NOT EXISTS idx_apontamento_linhas_apontamento ON apontamento_linhas(apontamento_id);
-

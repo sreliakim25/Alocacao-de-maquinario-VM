@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { db } = require('./config/database');
+require('./config/supabase'); // inicializa cliente Supabase
 
 const app = express();
 const PORT = process.env.PORT || 3001;

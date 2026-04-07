@@ -258,15 +258,23 @@ const Apontamento = () => {
         }
     };
 
+    // Detecta se a data do apontamento é sexta-feira
+    const isDateFriday = headerData.data
+        ? new Date(headerData.data + 'T12:00:00').getDay() === 5
+        : false;
+
     // Botões de Atalho de Horário
     const setTimeRange = (id, type) => {
         if (!isEditable) return;
         let inicio = '';
         let fim = '';
+        // Sexta: jornada encerra às 16h (8h líquidas após descontar almoço)
+        // Segunda a quinta: encerra às 17h (9h líquidas após descontar almoço)
+        const fimDia = isDateFriday ? '16:00' : '17:00';
         switch (type) {
             case 'manha': inicio = '07:00'; fim = '12:00'; break;
-            case 'tarde': inicio = '13:00'; fim = '17:00'; break;
-            case 'dia': inicio = '07:00'; fim = '17:00'; break;
+            case 'tarde': inicio = '13:00'; fim = fimDia; break;
+            case 'dia':   inicio = '07:00'; fim = fimDia; break;
             default: break;
         }
         setRows(rows.map(row =>
@@ -286,11 +294,15 @@ const Apontamento = () => {
         const end = hEnd * 60 + mEnd;
         let diff = (end - start) / 60;
 
-        // Desconta 1h (almoço) se o período cobrir totalmente o intervalo 12:00 - 13:00
-        const lunchStart = 12 * 60;
-        const lunchEnd = 13 * 60;
+        // Desconta 1h (almoço) APENAS quando o período atravessa completamente o intervalo
+        // de almoço: começa ESTRITAMENTE antes das 12h E termina ESTRITAMENTE depois das 13h.
+        //
+        // Exceção explícita: se o início for >= 12:00 (ex: 12:00-13:00, 12:00-12:30),
+        // a alocação é intencional no horário de almoço e deve ser contabilizada integralmente.
+        const lunchStart = 12 * 60; // 720 min
+        const lunchEnd   = 13 * 60; // 780 min
 
-        if (start <= lunchStart && end >= lunchEnd) {
+        if (start < lunchStart && end > lunchEnd) {
             diff -= 1.0;
         }
 

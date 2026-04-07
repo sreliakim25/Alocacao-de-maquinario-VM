@@ -1,55 +1,51 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/database');
+const supabase = require('../config/supabase');
+const bcrypt = require('bcrypt');
 const authMiddleware = require('../middleware/auth');
 const permissionMiddleware = require('../middleware/permissions');
 
-// GET /api/usuarios - Listar todos os usuários (admin apenas)
+// GET /api/usuarios
 router.get('/', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
-        const query = `
-            SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em, conta_id
-            FROM usuarios
-            ORDER BY criado_em DESC
-        `;
-        const result = await db.query(query);
-        res.json(result.rows);
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em, conta_id')
+            .order('criado_em', { ascending: false });
+
+        if (error) throw error;
+        res.json(data);
     } catch (error) {
         console.error('Erro ao listar usuários:', error);
         res.status(500).json({ error: 'Erro ao listar usuários' });
     }
 });
 
-// GET /api/usuarios/:id - Buscar usuário por ID
+// GET /api/usuarios/:id
 router.get('/:id', authMiddleware, async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
 
-        // Usuários comuns só podem ver seu próprio perfil
-        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
+        if (req.userId !== id && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
-        const query = `
-            SELECT id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em
-            FROM usuarios
-            WHERE id = $1
-        `;
-        const result = await db.query(query, [id]);
-        const user = result.rows[0];
+        const { data, error } = await supabase
+            .from('usuarios')
+            .select('id, nome, email, telefone, nivel_acesso, ativo, foto_url, criado_em')
+            .eq('id', id)
+            .single();
 
-        if (!user) {
-            return res.status(404).json({ error: 'Usuário não encontrado' });
-        }
-
-        res.json(user);
+        if (error) throw error;
+        if (!data) return res.status(404).json({ error: 'Usuário não encontrado' });
+        res.json(data);
     } catch (error) {
         console.error('Erro ao buscar usuário:', error);
         res.status(500).json({ error: 'Erro ao buscar usuário' });
     }
 });
 
-// POST /api/usuarios - Criar novo usuário (Admin/Dev)
+// POST /api/usuarios
 router.post('/', authMiddleware, permissionMiddleware(['Administrador', 'Desenvolvedor']), async (req, res) => {
     try {
         const { nome, email, telefone, senha, nivel_acesso, conta_id } = req.body;
@@ -61,83 +57,63 @@ router.post('/', authMiddleware, permissionMiddleware(['Administrador', 'Desenvo
         const bcrypt = require('bcrypt');
         const senha_hash = await bcrypt.hash(senha, 10);
 
-        const query = `
-            INSERT INTO usuarios (nome, email, telefone, senha_hash, nivel_acesso, conta_id)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, nome, email, nivel_acesso, criado_em
-        `;
-        const result = await db.query(query, [nome, email, telefone, senha_hash, nivel_acesso, conta_id]);
-        res.status(201).json(result.rows[0]);
+        const { data, error } = await supabase
+            .from('usuarios')
+            .insert({ nome, email, telefone, senha_hash, nivel_acesso, conta_id })
+            .select('id, nome, email, nivel_acesso, criado_em')
+            .single();
 
+        if (error) {
+            if (error.code === '23505') return res.status(409).json({ error: 'Email já cadastrado' });
+            throw error;
+        }
+
+        res.status(201).json(data);
     } catch (error) {
         console.error('Erro ao criar usuário:', error);
-        if (error.code === '23505') { // Unique violation
-            return res.status(409).json({ error: 'Email já cadastrado' });
-        }
         res.status(500).json({ error: 'Erro ao criar usuário: ' + error.message });
     }
 });
 
-// PUT /api/usuarios/:id - Atualizar usuário
+// PUT /api/usuarios/:id
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
         const { nome, email, telefone, foto_url, senha } = req.body;
 
-        // Usuários comuns só podem editar seu próprio perfil
-        if (req.userId !== parseInt(id) && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
+        if (req.userId !== id && req.userRole !== 'Gerente' && req.userRole !== 'Desenvolvedor' && req.userRole !== 'Administrador') {
             return res.status(403).json({ error: 'Acesso negado' });
         }
 
-        const updates = [];
-        const values = [];
-        let counter = 1;
-
-        if (nome) {
-            updates.push(`nome = $${counter++}`);
-            values.push(nome);
-        }
-        if (email) {
-            updates.push(`email = $${counter++}`);
-            values.push(email);
-        }
-        if (telefone !== undefined) {
-            updates.push(`telefone = $${counter++}`);
-            values.push(telefone);
-        }
-        if (foto_url !== undefined) {
-            updates.push(`foto_url = $${counter++}`);
-            values.push(foto_url);
-        }
+        const updates = {};
+        if (nome) updates.nome = nome;
+        if (email) updates.email = email;
+        if (telefone !== undefined) updates.telefone = telefone;
+        if (foto_url !== undefined) updates.foto_url = foto_url;
         if (senha) {
             const bcrypt = require('bcrypt');
-            const senha_hash = await bcrypt.hash(senha, 10);
-            updates.push(`senha_hash = $${counter++}`);
-            values.push(senha_hash);
+            updates.senha_hash = await bcrypt.hash(senha, 10);
         }
 
-        if (updates.length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.status(400).json({ error: 'Nenhum campo para atualizar' });
         }
 
-        updates.push('atualizado_em = CURRENT_TIMESTAMP');
-        values.push(id);
+        updates.atualizado_em = new Date().toISOString();
 
-        const query = `UPDATE usuarios SET ${updates.join(', ')} WHERE id = $${counter}`;
-        await db.query(query, values);
-
+        const { error } = await supabase.from('usuarios').update(updates).eq('id', id);
+        if (error) throw error;
         res.json({ message: 'Usuário atualizado com sucesso' });
-
     } catch (error) {
         console.error('Erro ao atualizar usuário:', error);
         res.status(500).json({ error: 'Erro ao atualizar usuário: ' + error.message });
     }
 });
 
-// PUT /api/usuarios/:id/role - Alterar nível/obra (Admin/Dev)
+// PUT /api/usuarios/:id/role
 router.put('/:id/role', authMiddleware, permissionMiddleware(['Administrador', 'Desenvolvedor']), async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
         const { nivel_acesso, conta_id } = req.body;
 
         const validRoles = ['Apontador', 'Supervisor', 'Líder', 'Suprimentos', 'Gerente', 'Desenvolvedor', 'Administrador'];
@@ -145,80 +121,106 @@ router.put('/:id/role', authMiddleware, permissionMiddleware(['Administrador', '
             return res.status(400).json({ error: 'Nível de acesso inválido' });
         }
 
-        // Não permitir editar própria permissão
-        if (req.userId === parseInt(id)) {
+        if (req.userId === id) {
             return res.status(403).json({ error: 'Não é possível alterar sua própria permissão' });
         }
 
-        let query;
-        let params;
+        const updates = { nivel_acesso, atualizado_em: new Date().toISOString() };
+        if (conta_id !== undefined) updates.conta_id = conta_id;
 
-        if (conta_id !== undefined) {
-            query = `
-                UPDATE usuarios 
-                SET nivel_acesso = $1, conta_id = $2, atualizado_em = CURRENT_TIMESTAMP
-                WHERE id = $3
-            `;
-            params = [nivel_acesso, conta_id, id];
-        } else {
-            query = `
-                UPDATE usuarios 
-                SET nivel_acesso = $1, atualizado_em = CURRENT_TIMESTAMP
-                WHERE id = $2
-            `;
-            params = [nivel_acesso, id];
-        }
-
-        await db.query(query, params);
-
+        const { error } = await supabase.from('usuarios').update(updates).eq('id', id);
+        if (error) throw error;
         res.json({ message: 'Permissão atualizada com sucesso' });
-
     } catch (error) {
         console.error('Erro ao atualizar permissão:', error);
         res.status(500).json({ error: 'Erro ao atualizar permissão: ' + error.message });
     }
 });
 
-// PUT /api/usuarios/:id/status - Ativar/Desativar usuário (Gerente+)
+// POST /api/usuarios/:id/approve — Aprova cadastro pendente + gera senha provisória + envia email
+router.post('/:id/approve', authMiddleware, permissionMiddleware(['Gerente']), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const crypto = require('crypto');
+        const { sendApprovalEmail } = require('../services/emailService');
+
+        // Buscar dados do usuário
+        const { data: user, error: fetchError } = await supabase
+            .from('usuarios')
+            .select('id, nome, email, ativo')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !user) {
+            return res.status(404).json({ error: 'Usuário não encontrado' });
+        }
+
+        // Gerar senha provisória: Vm + 3 dígitos + @ + 4 hex uppercase
+        const digits = Math.floor(Math.random() * 900 + 100);
+        const hex = crypto.randomBytes(2).toString('hex').toUpperCase();
+        const provisionalPassword = `Vm${digits}@${hex}`;
+        const senha_hash = await bcrypt.hash(provisionalPassword, 10);
+
+        // Ativar usuário e definir senha provisória
+        const { error: updateError } = await supabase
+            .from('usuarios')
+            .update({ ativo: true, senha_hash, atualizado_em: new Date().toISOString() })
+            .eq('id', id);
+
+        if (updateError) throw updateError;
+
+        // Enviar email de aprovação com a senha provisória
+        sendApprovalEmail({ nome: user.nome, email: user.email, provisionalPassword })
+            .catch(err => console.error('[APPROVE-EMAIL]', err.message));
+
+        console.log(`✅ Usuário aprovado: ${user.email} | Senha provisória: ${provisionalPassword}`);
+
+        res.json({
+            message: 'Usuário aprovado com sucesso! Email enviado com a senha provisória.',
+            provisionalPassword // retornado para fallback caso email não esteja configurado
+        });
+
+    } catch (error) {
+        console.error('Erro ao aprovar usuário:', error);
+        res.status(500).json({ error: 'Erro ao aprovar usuário' });
+    }
+});
+
+// PUT /api/usuarios/:id/status
 router.put('/:id/status', authMiddleware, permissionMiddleware('Gerente'), async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
         const { ativo } = req.body;
 
-        // Não permitir desativar própria conta
-        if (req.userId === parseInt(id)) {
+        if (req.userId === id) {
             return res.status(403).json({ error: 'Não é possível desativar sua própria conta' });
         }
 
-        const query = `
-            UPDATE usuarios 
-            SET ativo = $1, atualizado_em = CURRENT_TIMESTAMP
-            WHERE id = $2
-        `;
-        await db.query(query, [ativo ? true : false, id]);
+        const { error } = await supabase
+            .from('usuarios')
+            .update({ ativo: !!ativo, atualizado_em: new Date().toISOString() })
+            .eq('id', id);
 
+        if (error) throw error;
         res.json({ message: `Usuário ${ativo ? 'ativado' : 'desativado'} com sucesso` });
-
     } catch (error) {
         console.error('Erro ao atualizar status:', error);
         res.status(500).json({ error: 'Erro ao atualizar status' });
     }
 });
 
-// DELETE /api/usuarios/:id - Deletar usuário (Desenvolvedor apenas)
+// DELETE /api/usuarios/:id
 router.delete('/:id', authMiddleware, permissionMiddleware('Desenvolvedor'), async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = parseInt(req.params.id);
 
-        // Não permitir deletar própria conta
-        if (req.userId === parseInt(id)) {
+        if (req.userId === id) {
             return res.status(403).json({ error: 'Não é possível deletar sua própria conta' });
         }
 
-        await db.query('DELETE FROM usuarios WHERE id = $1', [id]);
-
+        const { error } = await supabase.from('usuarios').delete().eq('id', id);
+        if (error) throw error;
         res.json({ message: 'Usuário deletado com sucesso' });
-
     } catch (error) {
         console.error('Erro ao deletar usuário:', error);
         res.status(500).json({ error: 'Erro ao deletar usuário' });

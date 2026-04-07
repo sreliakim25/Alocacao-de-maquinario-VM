@@ -40,29 +40,25 @@ const useAuthStore = create(
                 }
             },
 
-            // Registrar novo usuário (API REAL)
+            // Registrar novo usuário / Solicitar acesso (API REAL)
             register: async (userData) => {
                 set({ loading: true, error: null });
 
                 try {
                     await authAPI.register({
-                        nome: userData.name,
+                        nome: userData.nome || userData.name,
                         email: userData.email,
-                        senha: userData.password,
-                        telefone: userData.telefone,
+                        nivel_acesso: userData.nivel_acesso,
+                        conta_id: userData.conta_id || null,
                     });
 
-                    set({
-                        loading: false,
-                        error: null,
-                    });
-
+                    set({ loading: false, error: null });
                     return true;
 
                 } catch (error) {
                     set({
                         loading: false,
-                        error: error.message || 'Erro ao registrar',
+                        error: error.message || 'Erro ao enviar solicitação',
                     });
                     return false;
                 }

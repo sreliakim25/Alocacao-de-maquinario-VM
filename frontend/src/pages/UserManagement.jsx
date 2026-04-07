@@ -32,7 +32,9 @@ import {
     Edit as EditIcon,
     PersonOffOutlined,
     PersonOutlined,
-    LockResetOutlined
+    LockResetOutlined,
+    HowToRegOutlined,
+    MarkEmailReadOutlined
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import useUserStore from '../store/userStore';
@@ -66,10 +68,11 @@ const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [resetPasswordDialog, setResetPasswordDialog] = useState(null);
+    const [approvalDialog, setApprovalDialog] = useState(null); // { nome, email, provisionalPassword }
     const [ugbs, setUgbs] = useState([]);
     const [loadingSave, setLoadingSave] = useState(false);
 
-    const { users, loading, fetchUsers, toggleUserStatus, resetUserPassword } = useUserStore();
+    const { users, loading, fetchUsers, toggleUserStatus, resetUserPassword, approveUser } = useUserStore();
     const { user: currentUser } = useAuthStore();
 
     useEffect(() => {
@@ -134,9 +137,24 @@ const UserManagement = () => {
         }
     };
 
-    const handleToggleStatus = async (userId) => {
-        await toggleUserStatus(userId);
+    const handleToggleStatus = async (user) => {
+        await toggleUserStatus(user.id, !user.ativo);
         fetchUsers();
+    };
+
+    const handleApproveUser = async (user) => {
+        if (!window.confirm(`Aprovar acesso de "${user.nome || user.name}"? Uma senha provisória será gerada e enviada por email.`)) return;
+
+        const result = await approveUser(user.id);
+        if (result.success) {
+            setApprovalDialog({
+                nome: user.nome || user.name,
+                email: user.email,
+                provisionalPassword: result.provisionalPassword
+            });
+        } else {
+            alert('Erro ao aprovar usuário: ' + result.error);
+        }
     };
 
     const handleResetPassword = async (userId) => {
@@ -191,8 +209,19 @@ const UserManagement = () => {
 
                     {/* Alerta de usuários pendentes */}
                     {pendingUsers.length > 0 && (
-                        <Alert severity="info">
-                            <strong>{pendingUsers.length}</strong> usuário(s) aguardando aprovação
+                        <Alert
+                            severity="warning"
+                            action={
+                                <Button
+                                    size="small"
+                                    color="inherit"
+                                    onClick={() => setFilterStatus('inactive')}
+                                >
+                                    Ver pendentes
+                                </Button>
+                            }
+                        >
+                            <strong>{pendingUsers.length}</strong> usuário(s) aguardando aprovação de acesso
                         </Alert>
                     )}
 
@@ -284,6 +313,19 @@ const UserManagement = () => {
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                    {/* Botão Aprovar Acesso — apenas para usuários pendentes (inativos) */}
+                                                    {!user.ativo && user.id !== currentUser?.id && (
+                                                        <Tooltip title="Aprovar Acesso e enviar senha por email">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="success"
+                                                                onClick={() => handleApproveUser(user)}
+                                                            >
+                                                                <HowToRegOutlined fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+
                                                     <Tooltip title="Editar Usuário">
                                                         <IconButton
                                                             size="small"
@@ -293,23 +335,25 @@ const UserManagement = () => {
                                                             <EditIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title={user.ativo ? 'Desativar' : 'Ativar'}>
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => handleToggleStatus(user.id)}
-                                                            disabled={user.id === currentUser?.id}
-                                                        >
-                                                            {user.ativo ? (
+
+                                                    {/* Toggle ativar/desativar — apenas para usuários já ativos */}
+                                                    {user.ativo && (
+                                                        <Tooltip title="Desativar usuário">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleToggleStatus(user)}
+                                                                disabled={user.id === currentUser?.id}
+                                                            >
                                                                 <PersonOffOutlined fontSize="small" />
-                                                            ) : (
-                                                                <PersonOutlined fontSize="small" />
-                                                            )}
-                                                        </IconButton>
-                                                    </Tooltip>
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+
                                                     <Tooltip title="Resetar Senha">
                                                         <IconButton
                                                             size="small"
                                                             onClick={() => handleResetPassword(user.id)}
+                                                            disabled={!user.ativo}
                                                         >
                                                             <LockResetOutlined fontSize="small" />
                                                         </IconButton>
@@ -421,11 +465,47 @@ const UserManagement = () => {
                         </Typography>
                     </Paper>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                        Copie esta senha e envie para o usuário. Em produção, seria enviada por email.
+                        Copie esta senha e envie para o usuário.
                     </Typography>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setResetPasswordDialog(null)} variant="contained">
+                        Fechar
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog de Aprovação de Acesso */}
+            <Dialog open={!!approvalDialog} onClose={() => setApprovalDialog(null)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <MarkEmailReadOutlined color="success" />
+                        <span>Acesso Aprovado!</span>
+                    </Stack>
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                        O acesso de <strong>{approvalDialog?.nome}</strong> foi liberado com sucesso.
+                        Um email com as credenciais foi enviado para <strong>{approvalDialog?.email}</strong>.
+                    </Alert>
+
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        <strong>Senha provisória (fallback)</strong><br />
+                        Caso o email não chegue, informe esta senha ao usuário manualmente:
+                    </Alert>
+
+                    <Paper sx={{ p: 2.5, bgcolor: 'grey.900', textAlign: 'center', borderRadius: 2 }}>
+                        <Typography variant="h5" sx={{ color: 'primary.main', fontFamily: 'monospace', letterSpacing: 3, fontWeight: 700 }}>
+                            {approvalDialog?.provisionalPassword}
+                        </Typography>
+                    </Paper>
+
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>
+                        O usuário deverá alterar esta senha após o primeiro acesso em Configurações.
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => { setApprovalDialog(null); fetchUsers(); }} variant="contained">
                         Fechar
                     </Button>
                 </DialogActions>

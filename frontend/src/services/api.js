@@ -83,6 +83,13 @@ export const authAPI = {
         });
     },
 
+    changePassword: async (senhaAtual, novaSenha) => {
+        return await apiRequest('/api/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ senhaAtual, novaSenha }),
+        });
+    },
+
     logout: () => {
         localStorage.removeItem('auth-token');
     },
@@ -120,6 +127,12 @@ export const usuariosAPI = {
         });
     },
 
+    approve: async (id) => {
+        return await apiRequest(`/api/usuarios/${id}/approve`, {
+            method: 'POST',
+        });
+    },
+
     delete: async (id) => {
         return await apiRequest(`/api/usuarios/${id}`, {
             method: 'DELETE',
@@ -130,8 +143,9 @@ export const usuariosAPI = {
 // ========== MÁQUINAS ==========
 
 export const maquinasAPI = {
-    getAll: async () => {
-        return await apiRequest('/api/maquinas');
+    getAll: async ({ apenasAtivos = false } = {}) => {
+        const params = apenasAtivos ? '?apenas_ativos=true' : '';
+        return await apiRequest(`/api/maquinas${params}`);
     },
 
     getById: async (id) => {

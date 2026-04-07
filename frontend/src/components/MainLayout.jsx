@@ -16,7 +16,8 @@ import {
     Divider,
     Alert,
     alpha,
-    Tooltip
+    Tooltip,
+    Chip
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -29,16 +30,13 @@ import {
     Construction,
     LightMode,
     DarkMode,
-    ChevronLeft,
-    ChevronRight,
     PushPin,
     PushPinOutlined,
-    AccountCircle,
     People,
     Notifications,
     Person,
-    ManageAccounts,
-    NotificationsNone
+    NotificationsNone,
+    AdminPanelSettings
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
@@ -309,21 +307,23 @@ const MainLayout = () => {
                     >
                         <Box display="flex" alignItems="center" gap={1.5}>
                             <Avatar
+                                src={user?.foto_url || undefined}
                                 sx={{
                                     bgcolor: 'secondary.main',
                                     color: '#000',
                                     fontWeight: 600,
                                     width: 45,
-                                    height: 45
+                                    height: 45,
+                                    fontSize: 18,
                                 }}
                             >
-                                {user?.name?.charAt(0) || 'U'}
+                                {!user?.foto_url && ((user?.nome || user?.name || 'U').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase())}
                             </Avatar>
-                            <Box sx={{ flex: 1 }}>
-                                <Typography variant="subtitle2" fontWeight="700" sx={{ lineHeight: 1.2 }}>
-                                    {user?.name || 'Usuário'}
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="subtitle2" fontWeight="700" sx={{ lineHeight: 1.2 }} noWrap>
+                                    {user?.nome || user?.name || 'Usuário'}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary" display="block">
+                                <Typography variant="caption" color="text.secondary" display="block" noWrap>
                                     {user?.email || ''}
                                 </Typography>
                             </Box>
@@ -395,42 +395,45 @@ const MainLayout = () => {
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                     >
                         {/* User Info Header */}
-                        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                            <Box display="flex" alignItems="center" gap={1.5}>
+                        <Box sx={{ px: 2.5, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                            <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
                                 <Avatar
+                                    src={user?.foto_url || undefined}
                                     sx={{
                                         bgcolor: 'secondary.main',
                                         color: '#000',
                                         fontWeight: 600,
-                                        width: 45,
-                                        height: 45
+                                        width: 48,
+                                        height: 48,
+                                        fontSize: 20,
                                     }}
                                 >
-                                    {user?.name?.charAt(0) || 'U'}
+                                    {!user?.foto_url && ((user?.nome || user?.name || 'U').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase())}
                                 </Avatar>
                                 <Box>
-                                    <Typography variant="subtitle1" fontWeight="700">
-                                        {user?.name || 'Usuário'}
+                                    <Typography variant="subtitle1" fontWeight="700" lineHeight={1.2}>
+                                        {user?.nome || user?.name || 'Usuário'}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary" display="block">
                                         {user?.email || ''}
                                     </Typography>
                                 </Box>
                             </Box>
+                            <Chip
+                                icon={<AdminPanelSettings sx={{ fontSize: '14px !important' }} />}
+                                label={user?.role || 'Não definido'}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                sx={{ fontSize: 11, height: 22 }}
+                            />
                         </Box>
 
                         {/* Menu Options */}
                         <Box sx={{ py: 1 }}>
                             <MenuItem
-                                onClick={() => {
-                                    handleMenuClose();
-                                    navigate('/configuracoes');
-                                }}
-                                sx={{
-                                    py: 1.5,
-                                    px: 2.5,
-                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
-                                }}
+                                onClick={() => { handleMenuClose(); navigate('/configuracoes'); }}
+                                sx={{ py: 1.5, px: 2.5, '&:hover': { bgcolor: alpha('#D9A441', 0.1) } }}
                             >
                                 <ListItemIcon>
                                     <Person fontSize="small" sx={{ color: '#D9A441' }} />
@@ -440,30 +443,7 @@ const MainLayout = () => {
 
                             <MenuItem
                                 onClick={handleMenuClose}
-                                sx={{
-                                    py: 1.5,
-                                    px: 2.5,
-                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
-                                }}
-                            >
-                                <ListItemIcon>
-                                    <ManageAccounts fontSize="small" sx={{ color: '#D9A441' }} />
-                                </ListItemIcon>
-                                <Box>
-                                    <Typography variant="body2">Sua Conta</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        Permissão: {user?.role || 'Não definido'}
-                                    </Typography>
-                                </Box>
-                            </MenuItem>
-
-                            <MenuItem
-                                onClick={handleMenuClose}
-                                sx={{
-                                    py: 1.5,
-                                    px: 2.5,
-                                    '&:hover': { bgcolor: alpha('#D9A441', 0.1) }
-                                }}
+                                sx={{ py: 1.5, px: 2.5, '&:hover': { bgcolor: alpha('#D9A441', 0.1) } }}
                             >
                                 <ListItemIcon>
                                     <Notifications fontSize="small" sx={{ color: '#D9A441' }} />
