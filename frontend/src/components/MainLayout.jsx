@@ -26,7 +26,6 @@ import {
     Settings,
     Menu as MenuIcon,
     Logout,
-    DeveloperMode,
     Construction,
     LightMode,
     DarkMode,
@@ -57,7 +56,7 @@ const MainLayout = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout, isDevelopmentBypass, hasPermission } = useAuthStore();
+    const { user, logout, hasPermission } = useAuthStore();
     const { mode, toggleTheme } = useThemeStore();
 
     const menuItems = [
@@ -520,19 +519,6 @@ const MainLayout = () => {
             >
                 <Toolbar />
 
-                {isDevelopmentBypass && (
-                    <Alert
-                        severity="warning"
-                        icon={<DeveloperMode />}
-                        sx={{
-                            mb: 3,
-                            backgroundColor: alpha('#D9A441', 0.1),
-                            border: '1px solid rgba(217, 164, 65, 0.3)',
-                        }}
-                    >
-                        <strong>Modo Desenvolvimento</strong> - Você está usando bypass de autenticação
-                    </Alert>
-                )}
 
                 <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
                     <Outlet />
