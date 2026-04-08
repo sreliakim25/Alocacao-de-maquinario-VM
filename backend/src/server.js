@@ -7,11 +7,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Origens permitidas
+// FRONTEND_URL aceita múltiplas URLs separadas por vírgula
+// Ex: https://meuapp.vercel.app,https://www.rochadev.com,https://rochadev.com
+const extraOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(u => u.trim()).filter(Boolean)
+    : [];
+
 const allowedOrigins = [
     // Desenvolvimento local
     /^http:\/\/localhost:\d+$/,
-    // URL de produção principal (ex: https://meuapp.vercel.app)
-    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+    // URLs de produção (suporta múltiplas separadas por vírgula)
+    ...extraOrigins,
     // Qualquer preview/branch deploy do Vercel do mesmo projeto
     ...(process.env.VERCEL_PROJECT ? [new RegExp(`^https:\\/\\/${process.env.VERCEL_PROJECT}-.*\\.vercel\\.app$`)] : []),
 ];
