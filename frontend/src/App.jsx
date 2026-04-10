@@ -4,7 +4,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import getTheme from './theme';
 import useAuthStore from './store/authStore';
 import useThemeStore from './store/themeStore';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Pages
 import Login from './pages/Login';
@@ -29,6 +31,11 @@ function App() {
   const { mode } = useThemeStore();
 
   const theme = useMemo(() => getTheme(mode), [mode]);
+
+  // Acorda o backend Railway assim que o app carrega (evita cold start lento)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/health`).catch(() => {});
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>

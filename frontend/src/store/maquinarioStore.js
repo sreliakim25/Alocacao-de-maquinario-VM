@@ -1,16 +1,23 @@
 import { create } from 'zustand';
 import { maquinasAPI } from '../services/api';
 
-const useMaquinarioStore = create((set) => ({
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+const useMaquinarioStore = create((set, get) => ({
     maquinarios: [],
     loading: false,
     error: null,
+    lastFetched: null,
 
-    fetchMaquinarios: async () => {
+    fetchMaquinarios: async ({ forceRefresh = false } = {}) => {
+        const { lastFetched, loading } = get();
+        if (!forceRefresh && lastFetched && Date.now() - lastFetched < CACHE_TTL_MS) return;
+        if (loading) return;
+
         set({ loading: true, error: null });
         try {
             const maquinarios = await maquinasAPI.getAll();
-            set({ maquinarios, loading: false });
+            set({ maquinarios, loading: false, lastFetched: Date.now() });
         } catch (error) {
             set({ error: error.message, loading: false });
         }
@@ -20,9 +27,8 @@ const useMaquinarioStore = create((set) => ({
         set({ loading: true, error: null });
         try {
             const result = await maquinasAPI.create(maquinario);
-            // Recarregar lista do backend para garantir consistência
             const maquinarios = await maquinasAPI.getAll();
-            set({ maquinarios, loading: false });
+            set({ maquinarios, loading: false, lastFetched: Date.now() });
             return result.id;
         } catch (error) {
             set({ error: error.message, loading: false });
@@ -35,7 +41,7 @@ const useMaquinarioStore = create((set) => ({
         try {
             await maquinasAPI.update(id, updatedData);
             const maquinarios = await maquinasAPI.getAll();
-            set({ maquinarios, loading: false });
+            set({ maquinarios, loading: false, lastFetched: Date.now() });
         } catch (error) {
             set({ error: error.message, loading: false });
             throw error;
