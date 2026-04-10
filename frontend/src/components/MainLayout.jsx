@@ -351,6 +351,7 @@ const MainLayout = () => {
                     width: { sm: `calc(100% - ${effectiveDrawerWidth}px)` },
                     ml: { sm: `${effectiveDrawerWidth}px` },
                     transition: 'all 0.3s ease',
+                    paddingTop: 'env(safe-area-inset-top)',
                 }}
             >
                 <Toolbar>
@@ -485,6 +486,7 @@ const MainLayout = () => {
                         '& .MuiDrawer-paper': {
                             boxSizing: 'border-box',
                             width: drawerWidth,
+                            paddingTop: 'env(safe-area-inset-top)',
                         },
                     }}
                 >
@@ -517,7 +519,7 @@ const MainLayout = () => {
                     transition: 'all 0.3s ease',
                 }}
             >
-                <Toolbar />
+                <Toolbar sx={{ marginTop: 'env(safe-area-inset-top)' }} />
 
 
                 <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
