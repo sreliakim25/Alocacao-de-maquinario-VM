@@ -72,7 +72,7 @@ const MainLayout = () => {
     ];
 
     // Menu de administração (apenas para Gerente ou superior)
-    const adminMenuItems = hasPermission('Gerente') ? [
+    const adminMenuItems = hasPermission('Administrador') ? [
         { text: 'Gerenciar Usuários', icon: <People />, path: '/user-management' },
     ] : [];
 
