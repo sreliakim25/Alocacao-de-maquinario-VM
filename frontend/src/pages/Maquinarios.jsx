@@ -43,6 +43,23 @@ const Cadastros = () => {
     const [checklistMaquinaId, setChecklistMaquinaId] = useState(null);
     const [checklistMaquinaNome, setChecklistMaquinaNome] = useState('');
 
+    // Confirmação de exclusão
+    const [deleteTarget, setDeleteTarget] = useState(null); // objeto maquinário
+    const [deleting, setDeleting] = useState(false);
+
+    const handleDeleteRequest = (maq) => setDeleteTarget(maq);
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
+        try {
+            await removeMaquinario(deleteTarget.id);
+        } finally {
+            setDeleting(false);
+            setDeleteTarget(null);
+        }
+    };
+
     const [formData, setFormData] = useState(emptyForm);
 
     useEffect(() => { fetchMaquinarios(); }, [fetchMaquinarios]);
@@ -159,7 +176,7 @@ const Cadastros = () => {
                         sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>
                         <Edit fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => removeMaquinario(maq.id)}
+                    <IconButton size="small" onClick={() => handleDeleteRequest(maq)}
                         sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: '#ff5252', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>
                         <Delete fontSize="small" />
                     </IconButton>
@@ -237,7 +254,7 @@ const Cadastros = () => {
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Excluir">
-                        <IconButton size="small" onClick={() => removeMaquinario(maq.id)} sx={{ color: '#ff5252' }}>
+                        <IconButton size="small" onClick={() => handleDeleteRequest(maq)} sx={{ color: '#ff5252' }}>
                             <Delete fontSize="small" />
                         </IconButton>
                     </Tooltip>
@@ -528,6 +545,105 @@ const Cadastros = () => {
                         sx={{ bgcolor: '#e65100', color: 'white', fontWeight: 600, '&:hover': { bgcolor: '#ef6c00' }, px: 4 }}
                     >
                         {submitting ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Cadastrar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ── Confirmar Exclusão ── */}
+            <Dialog
+                open={Boolean(deleteTarget)}
+                onClose={() => !deleting && setDeleteTarget(null)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: 2 } }}
+            >
+                <Box sx={{ p: 3, pb: 1 }}>
+                    <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+                        <Box sx={{ bgcolor: alpha('#C04848', 0.1), borderRadius: 2, p: 1, display: 'flex' }}>
+                            <Delete sx={{ color: 'error.main', fontSize: 28 }} />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight="bold" lineHeight={1.2}>
+                                Excluir Maquinário
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Esta ação não pode ser desfeita
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    {deleteTarget && (
+                        <Box sx={{ bgcolor: 'background.default', borderRadius: 2, p: 2, mb: 2, border: 1, borderColor: 'divider' }}>
+                            {deleteTarget.foto && (
+                                <Box
+                                    component="img"
+                                    src={deleteTarget.foto}
+                                    alt={deleteTarget.nome}
+                                    sx={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 1.5, mb: 1.5 }}
+                                />
+                            )}
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                {deleteTarget.nome}
+                            </Typography>
+                            <Stack spacing={0.5}>
+                                {deleteTarget.tipo && (
+                                    <Box display="flex" gap={1}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 70 }}>Tipo:</Typography>
+                                        <Typography variant="caption">{deleteTarget.tipo}</Typography>
+                                    </Box>
+                                )}
+                                {deleteTarget.placa && (
+                                    <Box display="flex" gap={1}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 70 }}>Placa:</Typography>
+                                        <Typography variant="caption">{deleteTarget.placa}</Typography>
+                                    </Box>
+                                )}
+                                {deleteTarget.operador && (
+                                    <Box display="flex" gap={1}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 70 }}>Operador:</Typography>
+                                        <Typography variant="caption">{deleteTarget.operador}</Typography>
+                                    </Box>
+                                )}
+                                {deleteTarget.setor && (
+                                    <Box display="flex" gap={1}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 70 }}>Setor:</Typography>
+                                        <Typography variant="caption">{deleteTarget.setor}</Typography>
+                                    </Box>
+                                )}
+                                <Box display="flex" gap={1}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 70 }}>Status:</Typography>
+                                    <Chip
+                                        label={deleteTarget.ativo ? 'Ativo' : 'Inativo'}
+                                        size="small"
+                                        color={deleteTarget.ativo ? 'success' : 'default'}
+                                        sx={{ height: 18, fontSize: 10 }}
+                                    />
+                                </Box>
+                            </Stack>
+                        </Box>
+                    )}
+
+                    <Typography variant="body2" color="text.secondary">
+                        Tem certeza que deseja excluir <strong>{deleteTarget?.nome}</strong>?
+                    </Typography>
+                </Box>
+
+                <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                    <Button
+                        onClick={() => setDeleteTarget(null)}
+                        disabled={deleting}
+                        color="inherit"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleDeleteConfirm}
+                        disabled={deleting}
+                        startIcon={deleting ? <CircularProgress size={16} color="inherit" /> : <Delete />}
+                    >
+                        {deleting ? 'Excluindo...' : 'Excluir'}
                     </Button>
                 </DialogActions>
             </Dialog>
