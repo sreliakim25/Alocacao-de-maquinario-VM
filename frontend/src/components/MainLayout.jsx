@@ -59,13 +59,16 @@ const MainLayout = () => {
     const { user, logout, hasPermission } = useAuthStore();
     const { mode, toggleTheme } = useThemeStore();
 
+    const borderColor = mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.10)';
+    const hoverBg = mode === 'dark' ? alpha('#ffffff', 0.05) : alpha('#000000', 0.05);
+
     const menuItems = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
         { text: 'Novo Apontamento', icon: <Assignment />, path: '/apontamento' },
         { text: 'Apontamentos', icon: <ListIcon />, path: '/lista-apontamentos' },
         {
             text: 'Maquinários',
-            icon: <Box component="img" src={excavatorIcon} sx={{ width: 24, height: 24, filter: 'invert(0.7)' }} />,
+            icon: <Box component="img" src={excavatorIcon} sx={{ width: 24, height: 24, filter: mode === 'dark' ? 'invert(0.7)' : 'invert(0.3)' }} />,
             path: '/cadastros'
         },
         { text: 'Cadastros', icon: <Construction />, path: '/cadastros-gerais' },
@@ -117,7 +120,7 @@ const MainLayout = () => {
             onMouseLeave={() => !sidebarPinned && setSidebarHovered(false)}
         >
             {/* Logo Section */}
-            <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+            <Box sx={{ p: 3, borderBottom: `1px solid ${borderColor}`, position: 'relative' }}>
                 {isExpanded && (
                     <>
                         <Box
@@ -133,7 +136,7 @@ const MainLayout = () => {
                                 alt="UDE"
                                 sx={{
                                     height: 100,
-                                    filter: 'brightness(1.2)',
+                                    filter: mode === 'dark' ? 'brightness(1.2)' : 'brightness(0.85)',
                                 }}
                             />
                         </Box>
@@ -158,7 +161,7 @@ const MainLayout = () => {
                                 height: 80,
                                 width: 80,
                                 objectFit: 'contain',
-                                filter: 'brightness(1.2)',
+                                filter: mode === 'dark' ? 'brightness(1.2)' : 'brightness(0.85)',
                             }}
                         />
                     </Box>
@@ -208,7 +211,7 @@ const MainLayout = () => {
                                             }
                                         },
                                         '&:hover': {
-                                            backgroundColor: alpha('#ffffff', 0.05),
+                                            backgroundColor: hoverBg,
                                         }
                                     }}
                                 >
@@ -291,7 +294,7 @@ const MainLayout = () => {
 
             {/* Footer */}
             {isExpanded && (
-                <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box sx={{ borderTop: `1px solid ${borderColor}` }}>
                     {/* User Profile Section */}
                     <Box
                         onClick={handleMenuOpen}
@@ -300,7 +303,7 @@ const MainLayout = () => {
                             cursor: 'pointer',
                             transition: 'background 0.2s',
                             '&:hover': {
-                                bgcolor: alpha('#ffffff', 0.05)
+                                bgcolor: hoverBg
                             }
                         }}
                     >
@@ -330,7 +333,7 @@ const MainLayout = () => {
                     </Box>
 
                     {/* Copyright Info */}
-                    <Box sx={{ px: 2, pb: 2, borderTop: '1px solid rgba(255,255,255,0.08)', pt: 2 }}>
+                    <Box sx={{ px: 2, pb: 2, borderTop: `1px solid ${borderColor}`, pt: 2 }}>
                         <Typography variant="caption" color="text.secondary" display="block">
                             © 2025 UDE
                         </Typography>
@@ -386,8 +389,7 @@ const MainLayout = () => {
                             sx: {
                                 mt: 1.5,
                                 minWidth: 280,
-                                bgcolor: '#1a1a1a',
-                                border: '1px solid rgba(255,255,255,0.08)',
+                                border: `1px solid ${borderColor}`,
                                 borderRadius: 2,
                             }
                         }}
@@ -395,7 +397,7 @@ const MainLayout = () => {
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                     >
                         {/* User Info Header */}
-                        <Box sx={{ px: 2.5, py: 2.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <Box sx={{ px: 2.5, py: 2.5, borderBottom: `1px solid ${borderColor}` }}>
                             <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
                                 <Avatar
                                     src={user?.foto_url || undefined}

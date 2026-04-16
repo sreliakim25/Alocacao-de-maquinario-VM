@@ -31,7 +31,7 @@ const getTheme = (mode) => createTheme({
             dark: '#8B3333',
         },
         background: {
-            default: mode === 'dark' ? '#0a0a0a' : '#f5f5f5',
+            default: mode === 'dark' ? '#0a0a0a' : '#f0f2f5',
             paper: mode === 'dark' ? '#1a1a1a' : '#ffffff',
         },
         text: {
@@ -112,7 +112,7 @@ const getTheme = (mode) => createTheme({
                     backgroundColor: mode === 'dark' ? '#1a1a1a' : '#ffffff',
                     borderRadius: 12,
                     border: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.05)',
+                    boxShadow: mode === 'dark' ? '0 4px 24px rgba(0,0,0,0.3)' : '0 2px 12px rgba(0,0,0,0.08)',
                 },
             },
         },
@@ -140,8 +140,8 @@ const getTheme = (mode) => createTheme({
         MuiDrawer: {
             styleOverrides: {
                 paper: {
-                    backgroundColor: mode === 'dark' ? '#0f0f0f' : '#ffffff',
-                    borderRight: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                    backgroundColor: mode === 'dark' ? '#0f0f0f' : '#fafafa',
+                    borderRight: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.10)',
                 },
             },
         },
@@ -151,7 +151,7 @@ const getTheme = (mode) => createTheme({
                     backgroundColor: mode === 'dark' ? '#0f0f0f' : '#ffffff',
                     color: mode === 'dark' ? '#ffffff' : '#121212',
                     borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                    boxShadow: 'none',
+                    boxShadow: mode === 'dark' ? 'none' : '0 1px 8px rgba(0,0,0,0.08)',
                 },
             },
         },
