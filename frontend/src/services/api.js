@@ -340,6 +340,10 @@ export const checklistAPI = {
         return await apiRequest(`/api/checklist/maquina/${maquinaId}`);
     },
 
+    getStats: async () => {
+        return await apiRequest('/api/checklist/stats/machines');
+    },
+
     getById: async (id) => {
         return await apiRequest(`/api/checklist/${id}`);
     },

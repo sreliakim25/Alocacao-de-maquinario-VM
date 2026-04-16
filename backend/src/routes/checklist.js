@@ -39,6 +39,33 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
+// GET /api/checklist/stats/machines — última inspeção e total por máquina
+router.get('/stats/machines', authMiddleware, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('machine_checklists')
+            .select('maquina_id, data_inspecao');
+
+        if (error) throw error;
+
+        const map = {};
+        data.forEach(({ maquina_id, data_inspecao }) => {
+            if (!map[maquina_id]) {
+                map[maquina_id] = { maquina_id, ultima_inspecao: data_inspecao, total: 0 };
+            }
+            map[maquina_id].total++;
+            if (data_inspecao > map[maquina_id].ultima_inspecao) {
+                map[maquina_id].ultima_inspecao = data_inspecao;
+            }
+        });
+
+        res.json(Object.values(map));
+    } catch (error) {
+        console.error('Erro ao buscar stats de checklist:', error);
+        res.status(500).json({ error: 'Erro ao buscar stats de checklist' });
+    }
+});
+
 // GET /api/checklist/maquina/:maquinaId — listar checklists de uma máquina
 router.get('/maquina/:maquinaId', authMiddleware, async (req, res) => {
     try {
