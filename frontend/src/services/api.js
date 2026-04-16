@@ -326,10 +326,30 @@ export const apontamentosAPI = {
     },
 };
 
+// ========== CHECKLIST ==========
+
+export const checklistAPI = {
+    save: async (payload) => {
+        return await apiRequest('/api/checklist', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+    },
+
+    getByMaquina: async (maquinaId) => {
+        return await apiRequest(`/api/checklist/maquina/${maquinaId}`);
+    },
+
+    getById: async (id) => {
+        return await apiRequest(`/api/checklist/${id}`);
+    },
+};
+
 export default {
     auth: authAPI,
     usuarios: usuariosAPI,
     maquinas: maquinasAPI,
     localizacoes: localizacoesAPI,
     apontamentos: apontamentosAPI,
+    checklist: checklistAPI,
 };

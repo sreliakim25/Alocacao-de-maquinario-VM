@@ -9,11 +9,12 @@ import {
 import {
     Add, ArrowBack, Close, Construction, Person, Business,
     Delete, Edit, PhotoCamera, DirectionsCar, Work,
-    ViewModule, ViewList, ChecklistRtl, Circle
+    ViewModule, ViewList, ChecklistRtl, Circle, Assignment
 } from '@mui/icons-material';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useMaquinarioStore from '../store/maquinarioStore';
+import MachineChecklistModal from '../components/MachineChecklistModal';
 
 const TiposMaquinas = [
     'Retroescavadeira', 'Pá Carregadeira', 'Caminhão Pipa',
@@ -36,6 +37,11 @@ const Cadastros = () => {
     const [submitting, setSubmitting] = useState(false);
     const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
     const fileInputRef = useRef(null);
+
+    // Checklist modal
+    const [checklistOpen, setChecklistOpen] = useState(false);
+    const [checklistMaquinaId, setChecklistMaquinaId] = useState(null);
+    const [checklistMaquinaNome, setChecklistMaquinaNome] = useState('');
 
     const [formData, setFormData] = useState(emptyForm);
 
@@ -87,10 +93,15 @@ const Cadastros = () => {
         try {
             if (editingId) {
                 await updateMaquinario(editingId, formData);
+                handleClose();
             } else {
-                await addMaquinario(formData);
+                const novaId = await addMaquinario(formData);
+                handleClose();
+                // Abrir checklist automaticamente após criar
+                setChecklistMaquinaId(novaId);
+                setChecklistMaquinaNome(formData.nome);
+                setChecklistOpen(true);
             }
-            handleClose();
         } catch (error) {
             setSubmitError(error.message || 'Erro ao salvar. Verifique sua permissão e tente novamente.');
         } finally {
@@ -137,6 +148,13 @@ const Cadastros = () => {
 
                 {/* Ações */}
                 <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
+                    <Tooltip title="Fazer Checklist">
+                        <IconButton size="small"
+                            onClick={() => { setChecklistMaquinaId(maq.id); setChecklistMaquinaNome(maq.nome); setChecklistOpen(true); }}
+                            sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: '#D9A441', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>
+                            <Assignment fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                     <IconButton size="small" onClick={() => handleOpen(maq)}
                         sx={{ bgcolor: 'rgba(0,0,0,0.55)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}>
                         <Edit fontSize="small" />
@@ -206,6 +224,13 @@ const Cadastros = () => {
             </TableCell>
             <TableCell align="right">
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    <Tooltip title="Fazer Checklist">
+                        <IconButton size="small"
+                            onClick={() => { setChecklistMaquinaId(maq.id); setChecklistMaquinaNome(maq.nome); setChecklistOpen(true); }}
+                            sx={{ color: 'secondary.main' }}>
+                            <Assignment fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                     <Tooltip title="Editar">
                         <IconButton size="small" onClick={() => handleOpen(maq)}>
                             <Edit fontSize="small" />
@@ -506,6 +531,15 @@ const Cadastros = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* ── Checklist Modal ── */}
+            <MachineChecklistModal
+                open={checklistOpen}
+                maquinaId={checklistMaquinaId}
+                maquinaNome={checklistMaquinaNome}
+                onClose={() => { setChecklistOpen(false); setChecklistMaquinaId(null); setChecklistMaquinaNome(''); }}
+                onSaved={() => fetchMaquinarios({ forceRefresh: true })}
+            />
         </Box>
     );
 };

@@ -45,12 +45,14 @@ const usuariosRoutes = require('./routes/usuarios');
 const maquinasRoutes = require('./routes/maquinas');
 const localizacoesRoutes = require('./routes/localizacoes');
 const apontamentosRoutes = require('./routes/apontamentos');
+const checklistRoutes = require('./routes/checklist');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/maquinas', maquinasRoutes);
 app.use('/api/localizacoes', localizacoesRoutes);
 app.use('/api/apontamentos', apontamentosRoutes);
+app.use('/api/checklist', checklistRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {

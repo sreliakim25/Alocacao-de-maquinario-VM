@@ -1,0 +1,30 @@
+export const CHECKLIST_ITEMS = [
+    { id: 1, label: 'Pneus calibrados e sem desgaste' },
+    { id: 2, label: 'Sinalização Luminosa (Giroflex, Faixa Retrorefletiva, Pisca Alerta, Farol)' },
+    { id: 3, label: 'Sinalização sonora (buzina e alerta de ré)' },
+    { id: 4, label: 'Retrovisor' },
+    { id: 5, label: 'Para-brisa' },
+    { id: 6, label: 'Direção / Alinhamento' },
+    { id: 7, label: 'Pedal do acelerador, embreagem e freio' },
+    { id: 8, label: 'Banco e cinto de segurança' },
+    { id: 9, label: 'Tampa (motor e tanque de combustível)' },
+    { id: 10, label: 'Vazamentos (Óleo, Gasolina, Entre Outros)' },
+    { id: 11, label: 'EPIs adequados para atividade' },
+    { id: 12, label: 'Crachá de identificação do operador' },
+    { id: 13, label: 'Extintor com carga e prazo de validade conforme' },
+    { id: 14, label: 'Algum indício de problema mecânico ou elétrico?' },
+    { id: 15, label: 'Botão de emergência', applicableTo: ['ROLO COMPACTADOR'] },
+    { id: 16, label: 'Trava de segurança (pedal, lança dianteira e lança traseira)', applicableTo: ['RETROESCAVADEIRA'] },
+    { id: 17, label: 'Sistema de estabilização', applicableTo: ['RETROESCAVADEIRA', 'MANIPULADOR ARTICULADO'] },
+    { id: 18, label: 'Outro (descrever nas observações)' },
+];
+
+export const EQUIPMENT_TYPES = [
+    'RETROESCAVADEIRA',
+    'ROLO COMPACTADOR',
+    'PATROL MOTONIVELADORA',
+    'TRATOR ARADO',
+    'TRATOR ESTEIRA',
+    'ESCAVADEIRA HIDRÁULICA',
+    'MANIPULADOR ARTICULADO',
+];
