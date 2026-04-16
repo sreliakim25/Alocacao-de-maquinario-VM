@@ -9,6 +9,8 @@ router.post('/', authMiddleware, async (req, res) => {
         const { maquina_id, operador_nome, empresa, chassi, tipo_equipamento, data_inspecao, itens, observacoes } = req.body;
 
         if (!maquina_id) return res.status(400).json({ error: 'maquina_id é obrigatório' });
+        const maquinaIdInt = parseInt(maquina_id, 10);
+        if (isNaN(maquinaIdInt)) return res.status(400).json({ error: 'maquina_id inválido' });
         if (!operador_nome) return res.status(400).json({ error: 'operador_nome é obrigatório' });
         if (!empresa) return res.status(400).json({ error: 'empresa é obrigatório' });
         if (!tipo_equipamento) return res.status(400).json({ error: 'tipo_equipamento é obrigatório' });
@@ -17,7 +19,7 @@ router.post('/', authMiddleware, async (req, res) => {
         const { data, error } = await supabase
             .from('machine_checklists')
             .insert({
-                maquina_id,
+                maquina_id: maquinaIdInt,
                 operador_nome,
                 empresa,
                 chassi: chassi || null,
