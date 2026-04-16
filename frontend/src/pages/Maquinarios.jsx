@@ -117,7 +117,8 @@ const Cadastros = () => {
                     backgroundImage: maq.foto ? `url(${maq.foto})` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    borderBottom: 1,
+                    borderColor: 'divider',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}
             >
@@ -157,7 +158,7 @@ const Cadastros = () => {
             <CardContent sx={{ pt: 2 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={1}>
                     <Typography variant="h6" fontWeight="bold" lineHeight={1.2}>{maq.nome}</Typography>
-                    <Typography variant="caption" sx={{ bgcolor: 'rgba(255,255,255,0.05)', px: 1, py: 0.5, borderRadius: 1, whiteSpace: 'nowrap' }}>
+                    <Typography variant="caption" sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, whiteSpace: 'nowrap' }}>
                         {maq.tipo}
                     </Typography>
                 </Box>
@@ -345,11 +346,11 @@ const Cadastros = () => {
                 maxWidth="md"
                 fullWidth
                 PaperProps={{
-                    sx: { borderRadius: 2, bgcolor: '#1a1a1a', backgroundImage: 'none', border: '1px solid rgba(255,255,255,0.08)' }
+                    sx: { borderRadius: 2, backgroundImage: 'none', border: 1, borderColor: 'divider' }
                 }}
             >
                 {/* Header do dialog */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, pb: 2, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, pb: 2, borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
                     <Box display="flex" alignItems="center" gap={2}>
                         <Box sx={{ p: 1, borderRadius: 1, bgcolor: alpha('#D9A441', 0.1) }}>
                             <Construction sx={{ color: '#D9A441' }} />
@@ -490,7 +491,7 @@ const Cadastros = () => {
                     </Box>
                 )}
 
-                <DialogActions sx={{ p: 3, pt: 1, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <DialogActions sx={{ p: 3, pt: 1, borderTop: (theme) => `1px solid ${theme.palette.divider}` }}>
                     <Button onClick={handleClose} sx={{ color: 'text.secondary' }} disabled={submitting}>
                         Cancelar
                     </Button>

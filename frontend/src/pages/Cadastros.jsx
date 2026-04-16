@@ -519,7 +519,7 @@ export default function Cadastros() {
                 Central de Cadastros
             </Typography>
 
-            <Paper sx={{ width: '100%', mb: 2, bgcolor: '#1e1e1e' }}>
+            <Paper sx={{ width: '100%', mb: 2 }}>
                 <Tabs
                     value={activeTab}
                     onChange={handleTabChange}
@@ -538,7 +538,7 @@ export default function Cadastros() {
             </Paper>
 
             <TabPanel value={activeTab} index={0}>
-                <Card sx={{ bgcolor: '#1e1e1e', mb: 3 }}>
+                <Card sx={{ mb: 3 }}>
                     <CardContent>
                         <input
                             type="file"
@@ -624,7 +624,7 @@ export default function Cadastros() {
                                         <TableHead>
                                             <TableRow>
                                                 {Object.keys(previewData[0]).map((header) => (
-                                                    <TableCell key={header} sx={{ bgcolor: '#333', fontWeight: 'bold' }}>{header}</TableCell>
+                                                    <TableCell key={header} sx={{ fontWeight: 'bold', bgcolor: 'background.default' }}>{header}</TableCell>
                                                 ))}
                                             </TableRow>
                                         </TableHead>
@@ -652,7 +652,7 @@ export default function Cadastros() {
             </TabPanel>
 
             <TabPanel value={activeTab} index={1}>
-                <Card sx={{ bgcolor: '#1e1e1e' }}>
+                <Card>
                     <CardContent>
                         {loadingData ? <LinearProgress /> :
                             <DataTable
@@ -667,7 +667,7 @@ export default function Cadastros() {
             </TabPanel>
 
             <TabPanel value={activeTab} index={2}>
-                <Card sx={{ bgcolor: '#1e1e1e' }}>
+                <Card>
                     <CardContent>
                         {loadingData ? <LinearProgress /> :
                             <DataTable
@@ -685,7 +685,7 @@ export default function Cadastros() {
             </TabPanel>
 
             <TabPanel value={activeTab} index={3}>
-                <Card sx={{ bgcolor: '#1e1e1e' }}>
+                <Card>
                     <CardContent>
                         {loadingData ? <LinearProgress /> :
                             <DataTable
@@ -700,7 +700,7 @@ export default function Cadastros() {
             </TabPanel>
 
             <TabPanel value={activeTab} index={4}>
-                <Card sx={{ bgcolor: '#1e1e1e' }}>
+                <Card>
                     <CardContent>
                         {loadingData ? <LinearProgress /> :
                             <DataTable
@@ -718,7 +718,7 @@ export default function Cadastros() {
             </TabPanel>
 
             <TabPanel value={activeTab} index={5}>
-                <Card sx={{ bgcolor: '#1e1e1e' }}>
+                <Card>
                     <CardContent>
                         {loadingData ? <LinearProgress /> :
                             <DataTable
@@ -738,12 +738,12 @@ export default function Cadastros() {
             </TabPanel>
 
             {/* Confirm Dialog */}
-            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} PaperProps={{ style: { backgroundColor: '#1e1e1e', color: 'white' } }}>
+            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
                 <DialogTitle sx={{ color: '#D9A441' }}>Confirmar Importação de {importType === 'supervisores' ? 'Supervisores' : 'Empreendimentos'}?</DialogTitle>
                 <DialogContent>
                     <Typography>Novos registros a serem criados:</Typography>
                     {analysisStats && (
-                        <Box sx={{ bgcolor: '#333', p: 2, borderRadius: 1, mt: 1 }}>
+                        <Box sx={{ bgcolor: 'background.default', p: 2, borderRadius: 1, mt: 1 }}>
                             <ul>
                                 <li>UGBs: {analysisStats.ugbs}</li>
                                 <li>Vilas: {analysisStats.vilas}</li>
