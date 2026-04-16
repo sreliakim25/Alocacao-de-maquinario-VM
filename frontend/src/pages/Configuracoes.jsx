@@ -1,11 +1,13 @@
 import {
     Box, Card, CardContent, Typography, Avatar, Button,
     TextField, Grid, Divider, IconButton, Alert, Stack,
-    Chip, CircularProgress, Tooltip
+    Chip, CircularProgress, Tooltip, alpha
 } from '@mui/material';
 import {
     PhotoCamera, Save, Lock, Person, AdminPanelSettings,
-    Edit, Cancel, CheckCircle, Visibility, VisibilityOff
+    Edit, Cancel, CheckCircle, Visibility, VisibilityOff,
+    Security, Dashboard, Assignment, ListAlt, Construction,
+    ManageAccounts, TableChart, CloudUpload, Block
 } from '@mui/icons-material';
 import { useState, useRef } from 'react';
 import useAuthStore from '../store/authStore';
@@ -32,6 +34,23 @@ const ROLE_COLORS = {
     'Suprimentos': 'secondary',
     'Apontador': 'default',
 };
+
+const ROLE_HIERARCHY = {
+    'Desenvolvedor': 7, 'Administrador': 7,
+    'Gerente': 6, 'Líder': 5, 'Lider': 5,
+    'Supervisor': 4, 'Suprimentos': 3, 'Apontador': 2,
+};
+
+const PERMISSIONS_LIST = [
+    { label: 'Dashboard', desc: 'Visualizar KPIs e métricas executivas', icon: Dashboard, minRole: 'Apontador' },
+    { label: 'Criar Apontamentos', desc: 'Registrar novos apontamentos de maquinários', icon: Assignment, minRole: 'Apontador' },
+    { label: 'Consultar Apontamentos', desc: 'Visualizar e filtrar lista de apontamentos', icon: ListAlt, minRole: 'Apontador' },
+    { label: 'Visualizar Maquinários', desc: 'Acessar o cadastro de máquinas', icon: Construction, minRole: 'Suprimentos' },
+    { label: 'Gerenciar Maquinários', desc: 'Cadastrar, editar e excluir maquinários', icon: Construction, minRole: 'Supervisor' },
+    { label: 'Central de Cadastros', desc: 'Gerenciar UGBs, Vilas, Sub Etapas e Supervisores', icon: TableChart, minRole: 'Líder' },
+    { label: 'Importar Planilhas', desc: 'Importar dados em massa via Excel/CSV', icon: CloudUpload, minRole: 'Gerente' },
+    { label: 'Gerenciar Usuários', desc: 'Criar, editar e administrar contas de usuário', icon: ManageAccounts, minRole: 'Administrador' },
+];
 
 const Configuracoes = () => {
     const { user, login } = useAuthStore();
@@ -480,6 +499,73 @@ const Configuracoes = () => {
                                         {savingPassword ? 'Alterando...' : 'Alterar Senha'}
                                     </Button>
                                 </Box>
+                            </CardContent>
+                        </Card>
+                        {/* Permissões do Acesso */}
+                        <Card>
+                            <CardContent>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                    <Security sx={{ mr: 1, color: 'secondary.main' }} />
+                                    <Typography variant="h6" fontWeight="bold">
+                                        Permissões do seu Acesso
+                                    </Typography>
+                                </Box>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                    Funcionalidades disponíveis para o nível <strong>{roleLabel}</strong>
+                                </Typography>
+
+                                <Grid container spacing={1.5}>
+                                    {PERMISSIONS_LIST.map((perm) => {
+                                        const userLevel = ROLE_HIERARCHY[user?.role] || 0;
+                                        const requiredLevel = ROLE_HIERARCHY[perm.minRole] || 0;
+                                        const allowed = userLevel >= requiredLevel;
+                                        const Icon = perm.icon;
+                                        return (
+                                            <Grid item xs={12} sm={6} key={perm.label}>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1.5,
+                                                        p: 1.5,
+                                                        borderRadius: 2,
+                                                        border: 1,
+                                                        borderColor: allowed ? alpha('#4caf50', 0.3) : 'divider',
+                                                        bgcolor: allowed ? alpha('#4caf50', 0.05) : 'action.hover',
+                                                        opacity: allowed ? 1 : 0.6,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            width: 34,
+                                                            height: 34,
+                                                            borderRadius: 1.5,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            bgcolor: allowed ? alpha('#4caf50', 0.12) : alpha('#000', 0.06),
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        <Icon sx={{ fontSize: 18, color: allowed ? 'success.main' : 'text.disabled' }} />
+                                                    </Box>
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Typography variant="body2" fontWeight={600} lineHeight={1.2}>
+                                                            {perm.label}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                                                            {perm.desc}
+                                                        </Typography>
+                                                    </Box>
+                                                    {allowed
+                                                        ? <CheckCircle sx={{ fontSize: 18, color: 'success.main', flexShrink: 0 }} />
+                                                        : <Block sx={{ fontSize: 18, color: 'text.disabled', flexShrink: 0 }} />
+                                                    }
+                                                </Box>
+                                            </Grid>
+                                        );
+                                    })}
+                                </Grid>
                             </CardContent>
                         </Card>
                     </Stack>
