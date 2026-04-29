@@ -173,11 +173,10 @@ router.post('/:id/approve', authMiddleware, permissionMiddleware(['Gerente']), a
         sendApprovalEmail({ nome: user.nome, email: user.email, provisionalPassword })
             .catch(err => console.error('[APPROVE-EMAIL]', err.message));
 
-        console.log(`✅ Usuário aprovado: ${user.email} | Senha provisória: ${provisionalPassword}`);
+        console.log(`✅ Usuário aprovado: ${user.email}`);
 
         res.json({
-            message: 'Usuário aprovado com sucesso! Email enviado com a senha provisória.',
-            provisionalPassword // retornado para fallback caso email não esteja configurado
+            message: 'Usuário aprovado com sucesso! Email enviado com a senha provisória.'
         });
 
     } catch (error) {

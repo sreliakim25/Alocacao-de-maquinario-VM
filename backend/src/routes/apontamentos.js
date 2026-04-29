@@ -231,6 +231,25 @@ router.put('/:id', authMiddleware, permissionMiddleware(['Apontador']), async (r
         const { id } = req.params;
         const { data_apontamento, maquina_id, operador, observacoes, linhas } = req.body;
 
+        // Verificar que o usuário é o criador do apontamento
+        const { data: existing, error: fetchError } = await supabase
+            .from('apontamentos')
+            .select('apontador_id, status')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !existing) {
+            return res.status(404).json({ error: 'Apontamento não encontrado' });
+        }
+
+        if (existing.apontador_id !== req.userId) {
+            return res.status(403).json({ error: 'Você só pode editar seus próprios apontamentos' });
+        }
+
+        if (existing.status !== 'em_apontamento') {
+            return res.status(403).json({ error: 'Não é possível editar um apontamento que já foi enviado para aprovação' });
+        }
+
         // Atualizar cabeçalho
         const updates = {};
         if (data_apontamento) updates.data_apontamento = data_apontamento;
