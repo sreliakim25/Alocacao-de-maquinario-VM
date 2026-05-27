@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apontamento de Maquinário — Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--surface:#1a1a1a;--surface2:#141414;--sidebar:#0f0f0f;
+  --border:rgba(255,255,255,0.08);
+  --red:#C04848;--red-dark:#8B3333;--red-light:#D96565;
+  --gold:#D9A441;--gold-dark:#B8872E;
+  --text:#f0f0f0;--dim:#b0b0b0;--muted:#666;
+  --green:#4caf50;--blue:#2196f3;--orange:#ff9800;
+  --sidebar-w:260px;--topbar-h:64px;--r:12px;--rs:8px;
+}
+html{font-family:'Inter',system-ui,sans-serif;font-size:14px}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+.hidden{display:none!important}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:600;border:1px solid transparent}
+.c-default{background:rgba(255,255,255,.06);color:var(--dim);border-color:rgba(255,255,255,.1)}
+.c-info{background:rgba(33,150,243,.12);color:#64b5f6;border-color:rgba(33,150,243,.3)}
+.c-warn{background:rgba(217,164,65,.12);color:var(--gold);border-color:rgba(217,164,65,.3)}
+.c-success{background:rgba(76,175,80,.12);color:var(--green);border-color:rgba(76,175,80,.3)}
+.c-error{background:rgba(192,72,72,.12);color:var(--red-light);border-color:rgba(192,72,72,.3)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:var(--rs);border:none;cursor:pointer;font:600 .82rem 'Inter',sans-serif;transition:all .15s;outline:none}
+.btn-primary{background:linear-gradient(135deg,var(--red),var(--red-dark));color:#fff}
+.btn-primary:hover{background:linear-gradient(135deg,var(--red-light),var(--red))}
+.btn-secondary{background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid rgba(255,255,255,.14)}
+.btn-ghost:hover{background:rgba(255,255,255,.06);color:var(--text)}
+.btn-sm{padding:5px 11px;font-size:.75rem}
+.btn-icon{padding:5px;border-radius:var(--rs);background:transparent;border:none;cursor:pointer;color:var(--dim);transition:all .15s;display:inline-flex}
+.btn-icon:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.w-full{width:100%;justify-content:center}
+
+/* ── INPUTS ── */
+.input{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:var(--rs);color:var(--text);font:.875rem 'Inter',sans-serif;padding:8px 11px;width:100%;outline:none;transition:border .15s}
+.input:focus{border-color:var(--red)}
+.input::placeholder{color:var(--muted)}
+select.input option{background:#1a1a1a}
+.label{font:.7rem/1 'Inter',sans-serif;font-weight:700;color:var(--dim);margin-bottom:4px;display:block;text-transform:uppercase;letter-spacing:.04em}
+.fg{margin-bottom:12px}
+
+/* ── CARDS / TABLES ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:8px;color:var(--dim)}
+.tw{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 13px;text-align:left;font:.65rem 'Inter',sans-serif;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;background:rgba(255,255,255,.025);border-bottom:1px solid var(--border)}
+td{padding:10px 13px;font-size:.83rem;border-bottom:1px solid rgba(255,255,255,.035)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ── LOGIN ── */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 60% 40%,rgba(192,72,72,.07) 0%,transparent 65%),var(--bg)}
+.lcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+.l-logo{text-align:center;margin-bottom:24px}
+.l-abbr{font-size:2.4rem;font-weight:800;background:linear-gradient(135deg,var(--red),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+.l-sub{font-size:.7rem;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.creds-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:10px 12px;margin-bottom:18px}
+.cred-row{display:flex;justify-content:space-between;padding:3px 0;font-size:.72rem;color:var(--dim)}
+.cred-row b{color:var(--text);font-size:.68rem}
+.l-err{background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);border-radius:var(--rs);padding:9px 12px;font-size:.78rem;color:var(--red-light);margin-bottom:10px}
+
+/* ── APP LAYOUT ── */
+#app-screen{display:flex;min-height:100vh}
+#sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;z-index:100}
+.sb-logo{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sb-logo-vm{width:32px;height:32px;background:linear-gradient(135deg,var(--red),var(--red-dark));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0}
+.sb-logo-text{font-weight:800;font-size:1rem;letter-spacing:-.01em}
+.sb-logo-vm-txt{background:linear-gradient(135deg,var(--red-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sb-logo-tiny{font-size:.58rem;color:var(--muted);letter-spacing:.06em}
+#sidebar nav{flex:1;padding:10px 0;overflow-y:auto}
+.nav-sec{padding:8px 12px 3px;font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:8px;margin:1px 7px;cursor:pointer;color:var(--dim);font-size:.83rem;font-weight:500;transition:all .12s;border:1px solid transparent;user-select:none}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-item.active{background:linear-gradient(135deg,rgba(192,72,72,.2) 0%,rgba(217,164,65,.2) 100%);color:var(--gold);border-color:transparent;border-left:3px solid var(--gold)!important;margin-left:4px;padding-left:14px;border-radius:0 8px 8px 0}
+.nav-item.active svg{color:var(--gold)}
+.nav-item svg{width:17px;height:17px;flex-shrink:0}
+.sb-user{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.sb-av{width:30px;height:30px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.72rem;flex-shrink:0;color:#000}
+.sb-uname{font-size:.78rem;font-weight:600;line-height:1.2}
+.sb-urole{font-size:.65rem;color:var(--dim)}
+
+#topbar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);background:var(--sidebar);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;z-index:99}
+#topbar .bc{font-size:.9rem;font-weight:700}
+.uchip{display:flex;align-items:center;gap:7px;padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.06);font-size:.75rem;cursor:pointer}
+.uchip:hover{background:rgba(255,255,255,.1)}
+.uav{width:22px;height:22px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;color:#000}
+.sb-email{font-size:.6rem;color:var(--muted);line-height:1}
+.sb-copy{padding:8px 14px;font-size:.6rem;color:var(--muted);text-align:center;letter-spacing:.03em}
+
+#main{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:26px;min-height:calc(100vh - var(--topbar-h))}
+.page{display:none}.page.active{display:block}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+.sec-head h1{font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
+.sec-head p{font-size:.75rem;color:var(--dim);margin-top:2px}
+
+/* ── DASHBOARD ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 18px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.kpi-r::before{background:var(--red)}.kpi-g::before{background:var(--gold)}.kpi-gn::before{background:var(--green)}.kpi-b::before{background:var(--blue)}
+.kpi-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:7px}
+.kpi-val{font-size:2rem;font-weight:800;line-height:1;margin-bottom:3px}
+.kpi-sub{font-size:.68rem;color:var(--muted)}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+@media(max-width:800px){.charts-grid{grid-template-columns:1fr}}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.chart-ttl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin-bottom:14px}
+
+/* ── MACHINE CARDS ── */
+.maq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:transform .15s,box-shadow .15s}
+.mcard:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.4)}
+.mthumb{height:124px;background:rgba(255,255,255,.025);display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--border)}
+.mact{position:absolute;top:7px;right:7px;display:flex;gap:3px}
+.mact-btn{padding:5px;border-radius:6px;background:rgba(0,0,0,.55);border:none;cursor:pointer;color:var(--dim);display:flex;transition:all .12s}
+.mact-btn:hover{background:rgba(0,0,0,.8);color:var(--text)}
+.mact-btn.chk{color:var(--gold)}
+.mact-btn.del{color:#ff5252}
+.mplate{position:absolute;bottom:7px;left:7px;background:rgba(0,0,0,.6);padding:2px 7px;border-radius:5px;font-size:.67rem;font-weight:700}
+.mstatus{position:absolute;top:7px;left:7px}
+.mbody{padding:13px 14px}
+.mname{font-weight:700;font-size:.88rem;margin-bottom:2px}
+.mtype{font-size:.68rem;background:rgba(255,255,255,.06);padding:2px 7px;border-radius:4px;display:inline-block}
+.minfo{margin-top:9px;display:flex;flex-direction:column;gap:4px}
+.mrow{display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--dim)}
+.mrow svg{width:13px;height:13px;flex-shrink:0;color:var(--gold)}
+
+/* ── CHECKLIST MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);width:100%;max-width:740px;margin:auto}
+.mhead{background:linear-gradient(135deg,var(--red-dark),var(--red));padding:16px 20px;border-radius:var(--r) var(--r) 0 0}
+.mhead h3{font-size:.95rem;font-weight:700;color:#fff;margin-bottom:2px}
+.mhead p{font-size:.68rem;color:rgba(255,255,255,.65)}
+.mbod{padding:20px}
+.mfoot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:9px}
+.cl-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.cl-table th{padding:7px 9px;text-align:left;font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.cl-table td{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.035)}
+.cl-table tr:last-child td{border-bottom:none}
+.cl-table tr.row-nc{background:rgba(192,72,72,.05)}
+.cl-table tr.row-c{background:rgba(76,175,80,.04)}
+.sbtns{display:flex;gap:3px;justify-content:center}
+.sbtn{padding:3px 9px;border-radius:4px;border:1px solid rgba(255,255,255,.13);background:transparent;cursor:pointer;font:700 .62rem 'Inter',sans-serif;color:var(--dim);transition:all .1s;min-width:34px}
+.sbtn:hover{border-color:rgba(255,255,255,.35);color:var(--text)}
+.sbtn.aC{background:var(--green);border-color:var(--green);color:#fff}
+.sbtn.aNC{background:var(--red);border-color:var(--red);color:#fff}
+.sbtn.aNA{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.3);color:#fff}
+.cl-err{background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);border-radius:var(--rs);padding:9px 11px;margin-top:9px;font-size:.78rem;color:var(--red-light)}
+
+/* ── FORM GRID ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.col2{grid-column:1/-1}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:22px;right:22px;padding:11px 16px;border-radius:var(--rs);font-size:.83rem;font-weight:600;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{background:rgba(76,175,80,.92);color:#fff}
+#toast.info{background:rgba(33,150,243,.9);color:#fff}
+#toast.err{background:rgba(192,72,72,.92);color:#fff}
+
+/* ── MISC ── */
+.divider{border:none;border-top:1px solid var(--border);margin:18px 0}
+.badge-sec{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px;display:block}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN ═══════════════════ -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="l-logo">
+      <div class="l-abbr">AM</div>
+      <div class="l-sub">Sistema de Apontamento de Maquinário</div>
+    </div>
+    <div class="creds-box">
+      <div style="font-size:.62rem;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Credenciais da Demo</div>
+      <div class="cred-row"><span>Desenvolvedor</span><b>admin@demo.ude.com / admin123</b></div>
+      <div class="cred-row"><span>Supervisor</span><b>supervisor@demo.ude.com / 123456</b></div>
+      <div class="cred-row"><span>Líder</span><b>lider@demo.ude.com / 123456</b></div>
+      <div class="cred-row"><span>Suprimentos</span><b>suprimentos@demo.ude.com / 123456</b></div>
+      <div class="cred-row"><span>Apontador</span><b>apontador@demo.ude.com / 123456</b></div>
+    </div>
+    <div id="l-err" class="l-err hidden"></div>
+    <div class="fg"><label class="label">E-mail</label><input id="l-email" class="input" type="email" value="admin@demo.ude.com"></div>
+    <div class="fg"><label class="label">Senha</label><input id="l-pass" class="input" type="password" value="admin123"></div>
+    <button class="btn btn-primary w-full" style="margin-top:4px" onclick="doLogin()">Entrar no Sistema</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="app-screen" class="hidden">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-vm">AM</div>
+      <div>
+        <div class="sb-logo-text">Apontamento de <span class="sb-logo-vm-txt">Maquinário</span></div>
+        <div class="sb-logo-tiny">SISTEMA · UDE</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-sec">Menu</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="nav('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard
+      </div>
+      <div class="nav-item" id="nav-apontamento-new" onclick="nav('apontamento-new',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zm-2 8H7v-2h4v2zm4-4H7v-2h8v2zm0-4H7V9h8v2z"/></svg>Novo Apontamento
+      </div>
+      <div class="nav-item" id="nav-apontamentos" onclick="nav('apontamentos',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>Apontamentos
+      </div>
+      <div class="nav-item" id="nav-maquinarios" onclick="nav('maquinarios',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.28L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 3.76 2.09 7.07 5.22 8.78L6 22h5V2.05z"/></svg>Maquinários
+      </div>
+      <div class="nav-sec">Administração</div>
+      <div class="nav-item" id="nav-cadastros" onclick="nav('cadastros',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94L14.4 2.81c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41L9.25 5.35c-.59.24-1.13.56-1.62.94L5.24 5.33c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Cadastros Gerais
+      </div>
+      <div class="nav-item" id="nav-usuarios" onclick="nav('usuarios',this)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Gerenciar Usuários
+      </div>
+    </nav>
+    <div class="sb-user">
+      <div class="sb-av" id="sb-av">A</div>
+      <div style="flex:1;min-width:0">
+        <div class="sb-uname" id="sb-name">Admin</div>
+        <div class="sb-email" id="sb-email">admin@demo.ude.com</div>
+        <div class="sb-urole" id="sb-role">Desenvolvedor</div>
+      </div>
+      <button class="btn-icon" style="margin-left:auto" onclick="doLogout()" title="Sair">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+      </button>
+    </div>
+    <div class="sb-copy">© 2025 UDE · v0.1.0</div>
+  </div>
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="bc" id="bc">Dashboard</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn-icon" title="Tema" onclick="toast('Tema disponível no sistema real','info')">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <button class="btn-icon" title="Notificações" onclick="toast('Sem notificações pendentes','info')">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      </button>
+      <div class="uchip" onclick="doLogout()">
+        <div class="uav" id="top-av">A</div>
+        <span id="top-name">Admin</span>
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px;color:var(--muted)"><path d="M7 10l5 5 5-5z"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page active">
+      <div class="sec-head">
+        <div><h1>Dashboard</h1><p id="dash-date"></p></div>
+        <button class="btn btn-ghost btn-sm" onclick="initCharts()">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>Atualizar
+        </button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi kpi-r"><div class="kpi-lbl">Maquinários Ativos</div><div class="kpi-val" style="color:var(--red-light)" id="kpi-maq">4</div><div class="kpi-sub">5 cadastrados · 1 inativo</div></div>
+        <div class="kpi kpi-g"><div class="kpi-lbl">Pendentes de Aprovação</div><div class="kpi-val" style="color:var(--gold)" id="kpi-pend">3</div><div class="kpi-sub">Aguardando supervisor / líder</div></div>
+        <div class="kpi kpi-gn"><div class="kpi-lbl">Aprovados no Mês</div><div class="kpi-val" style="color:var(--green)">18</div><div class="kpi-sub">+3 esta semana</div></div>
+        <div class="kpi kpi-b"><div class="kpi-lbl">Horas Trabalhadas</div><div class="kpi-val" style="color:#64b5f6">156h</div><div class="kpi-sub">Nos últimos 7 dias</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-box"><div class="chart-ttl">Apontamentos por Dia</div><canvas id="chart-bar" height="200"></canvas></div>
+        <div class="chart-box"><div class="chart-ttl">Distribuição por Status</div><canvas id="chart-pie" height="200"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+          Apontamentos Recentes
+        </div>
+        <table><thead><tr><th>#</th><th>Data</th><th>Máquina</th><th>Operador</th><th>Status</th></tr></thead>
+        <tbody id="dash-recent"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── MAQUINÁRIOS ── -->
+    <div id="page-maquinarios" class="page">
+      <div class="sec-head">
+        <div><h1>Maquinários</h1><p id="maq-sub">4 ativos · 1 inativo</p></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="view-btn" onclick="toggleView()">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zM3 19h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zm5 0h4v-4h-4v4zm0-14v4h4V5h-4z"/></svg>Lista
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="toast('Cadastro disponível no sistema real','info')">
+            <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Novo
+          </button>
+        </div>
+      </div>
+      <div id="maq-container"></div>
+    </div>
+
+    <!-- ── APONTAMENTOS ── -->
+    <div id="page-apontamentos" class="page">
+      <div class="sec-head">
+        <div><h1>Apontamentos</h1><p>Histórico e fluxo de aprovação</p></div>
+        <button class="btn btn-secondary btn-sm" onclick="nav('apontamento-new',document.getElementById('nav-apontamento-new'))">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Novo
+        </button>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="input" style="max-width:180px" id="f-status" onchange="renderApontamentos()">
+          <option value="">Todos os status</option>
+          <option value="em_apontamento">Em Edição</option>
+          <option value="liberado_apontador">Aguard. Supervisor</option>
+          <option value="pendente_lider">Pendente Líder</option>
+          <option value="aprovado">Aprovado</option>
+        </select>
+        <select class="input" style="max-width:180px" id="f-maq" onchange="renderApontamentos()">
+          <option value="">Todas as máquinas</option>
+          <option>Retro-05</option><option>PC-01</option>
+          <option>Pipa-02</option><option>Rolo-01</option>
+        </select>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>Data</th><th>Máquina</th><th>Operador</th><th>UGB</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead>
+        <tbody id="ap-tbody"></tbody>
+      </table></div>
+    </div>
+
+    <!-- ── NOVO APONTAMENTO ── -->
+    <div id="page-apontamento-new" class="page">
+      <div class="sec-head">
+        <div><h1>Novo Apontamento</h1><p>Registre o uso de maquinário em obra</p></div>
+        <button class="btn btn-ghost btn-sm" onclick="nav('apontamentos',document.getElementById('nav-apontamentos'))">← Voltar</button>
+      </div>
+      <div class="card" style="max-width:700px">
+        <div class="mbod">
+          <div class="grid2">
+            <div class="fg"><label class="label">Data</label><input class="input" type="date" id="ap-data"></div>
+            <div class="fg"><label class="label">Máquina</label>
+              <select class="input"><option value="">Selecione...</option><option>Retro-05 — Retroescavadeira</option><option>PC-01 — Pá Carregadeira</option><option>Pipa-02 — Caminhão Pipa</option><option>Rolo-01 — Rolo Compactador</option></select>
+            </div>
+            <div class="fg"><label class="label">Operador</label><input class="input" placeholder="Nome do operador"></div>
+            <div class="fg"><label class="label">UGB / Conta</label>
+              <select class="input"><option>UGB 01 — Obras Norte</option><option>UGB 02 — Obras Sul</option><option>UGB 03 — Manutenção</option></select>
+            </div>
+          </div>
+          <div style="border:1px dashed rgba(255,255,255,.12);border-radius:var(--rs);padding:13px;margin-top:4px">
+            <div style="font-size:.68rem;font-weight:700;color:var(--dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">Linha de Serviço 1</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px">
+              <div class="fg"><label class="label">Vila</label><select class="input"><option>Vila Esperança</option><option>Vila Nova</option><option>Vila São José</option></select></div>
+              <div class="fg"><label class="label">Sub-Etapa</label><select class="input"><option>Terraplanagem</option><option>Drenagem</option><option>Pavimentação</option></select></div>
+              <div class="fg"><label class="label">Tarefa</label><select class="input"><option>Escavação</option><option>Aterro</option><option>Compactação</option></select></div>
+              <div class="fg"><label class="label">Início</label><input class="input" type="time" value="07:00"></div>
+              <div class="fg"><label class="label">Fim</label><input class="input" type="time" value="17:00"></div>
+              <div class="fg"><label class="label">Supervisor</label><select class="input"><option>Carlos Mendes</option><option>Ana Paula Santos</option></select></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+            <button class="btn btn-ghost" onclick="toast('Rascunho salvo com sucesso','ok')">Salvar Rascunho</button>
+            <button class="btn btn-primary" onclick="toast('Apontamento liberado para aprovação','ok');nav('apontamentos',document.getElementById('nav-apontamentos'))">
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>Liberar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CADASTROS ── -->
+    <div id="page-cadastros" class="page">
+      <div class="sec-head"><div><h1>Cadastros Gerais</h1><p>UGBs, Vilas, Etapas, Supervisores</p></div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px">
+        <div class="card"><div class="card-head" style="color:var(--gold)">UGBs / Contas</div>
+          <div style="padding:10px 14px">
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between">UGB 01 — Obras Norte<span class="chip c-success">Ativo</span></div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between">UGB 02 — Obras Sul<span class="chip c-success">Ativo</span></div>
+            <div style="font-size:.81rem;padding:7px 0;display:flex;justify-content:space-between">UGB 03 — Manutenção<span class="chip c-success">Ativo</span></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-head" style="color:var(--gold)">Vilas</div>
+          <div style="padding:10px 14px">
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Vila Esperança · UGB 01</div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Vila Nova · UGB 02</div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Vila São José · UGB 01</div>
+            <div style="font-size:.81rem;padding:7px 0">Vila Progresso · UGB 03</div>
+          </div>
+        </div>
+        <div class="card"><div class="card-head" style="color:var(--gold)">Sub-Etapas</div>
+          <div style="padding:10px 14px">
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Terraplanagem</div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Infraestrutura</div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Pavimentação</div>
+            <div style="font-size:.81rem;padding:7px 0">Drenagem</div>
+          </div>
+        </div>
+        <div class="card"><div class="card-head" style="color:var(--gold)">Supervisores</div>
+          <div style="padding:10px 14px">
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Carlos Mendes · UGB 01</div>
+            <div style="font-size:.81rem;padding:7px 0;border-bottom:1px solid var(--border)">Ana Paula Santos · UGB 02</div>
+            <div style="font-size:.81rem;padding:7px 0">Roberto Nunes · UGB 03</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── USUÁRIOS ── -->
+    <div id="page-usuarios" class="page">
+      <div class="sec-head"><div><h1>Gerenciar Usuários</h1><p>Controle de acesso por hierarquia</p></div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>UGB</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><b>Admin Sistema</b></td><td style="color:var(--dim);font-size:.75rem">admin@demo.ude.com</td><td><span class="chip c-error">Desenvolvedor</span></td><td style="color:var(--dim)">—</td><td><span class="chip c-success">Ativo</span></td></tr>
+          <tr><td><b>Marcos Paulo</b></td><td style="color:var(--dim);font-size:.75rem">supervisor@demo.ude.com</td><td><span class="chip c-info">Supervisor</span></td><td style="color:var(--dim)">UGB 01</td><td><span class="chip c-success">Ativo</span></td></tr>
+          <tr><td><b>Rodrigo Lima</b></td><td style="color:var(--dim);font-size:.75rem">lider@demo.ude.com</td><td><span class="chip c-warn">Líder</span></td><td style="color:var(--dim)">UGB 01</td><td><span class="chip c-success">Ativo</span></td></tr>
+          <tr><td><b>Priscila Cunha</b></td><td style="color:var(--dim);font-size:.75rem">suprimentos@demo.ude.com</td><td><span class="chip c-success">Suprimentos</span></td><td style="color:var(--dim)">—</td><td><span class="chip c-success">Ativo</span></td></tr>
+          <tr><td><b>José Carlos</b></td><td style="color:var(--dim);font-size:.75rem">apontador@demo.ude.com</td><td><span class="chip c-default">Apontador</span></td><td style="color:var(--dim)">UGB 01</td><td><span class="chip c-success">Ativo</span></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app-screen -->
+
+<!-- ═══════════════════ CHECKLIST MODAL ═══════════════════ -->
+<div id="cl-overlay" class="overlay hidden" onclick="if(event.target===this)closeCL()">
+  <div class="modal">
+    <div class="mhead">
+      <h3>📋 Checklist de Inspeção de Segurança — Máquinas Pesadas</h3>
+      <p id="cl-sub">FORM 140-2/03</p>
+    </div>
+    <div class="mbod">
+      <div class="grid2" style="margin-bottom:14px">
+        <div class="fg" style="margin:0"><label class="label">Nome do Operador *</label><input class="input" id="cl-op" placeholder="Nome completo"></div>
+        <div class="fg" style="margin:0"><label class="label">Empresa *</label><input class="input" id="cl-emp" placeholder="Nome da empresa"></div>
+        <div class="fg" style="margin:0"><label class="label">Chassi</label><input class="input" id="cl-cha" placeholder="Nº do chassi"></div>
+        <div class="fg" style="margin:0"><label class="label">Data de Verificação *</label><input class="input" type="date" id="cl-dt"></div>
+        <div class="fg col2" style="margin:0"><label class="label">Tipo de Equipamento *</label>
+          <select class="input" id="cl-tipo" onchange="renderCLItems()">
+            <option value="">Selecione...</option>
+            <option>RETROESCAVADEIRA</option><option>ROLO COMPACTADOR</option>
+            <option>PATROL MOTONIVELADORA</option><option>TRATOR ARADO</option>
+            <option>TRATOR ESTEIRA</option><option>ESCAVADEIRA HIDRÁULICA</option>
+            <option>MANIPULADOR ARTICULADO</option>
+          </select>
+        </div>
+      </div>
+      <!-- legenda + progresso -->
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <span class="chip c-success">C — Conforme</span>
+        <span class="chip c-error">NC — Não Conforme</span>
+        <span class="chip c-default">NA — Não Aplicável</span>
+        <span id="cl-prog" style="margin-left:auto;font-size:.72rem;color:var(--dim)"></span>
+      </div>
+      <!-- items -->
+      <div style="border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;margin-bottom:12px">
+        <table class="cl-table">
+          <thead><tr><th style="width:38px">#</th><th>Item de Verificação</th><th style="width:145px;text-align:center">Status</th></tr></thead>
+          <tbody id="cl-tbody"></tbody>
+        </table>
+      </div>
+      <div class="fg" style="margin:0"><label class="label">Observações</label>
+        <textarea class="input" id="cl-obs" rows="3" placeholder="Registre aqui qualquer inconformidade..." style="resize:vertical"></textarea>
+      </div>
+      <div id="cl-err" class="cl-err hidden"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeCL()">Pular por agora</button>
+      <button class="btn btn-primary" id="cl-save" onclick="saveCL()">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Salvar Checklist
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// DADOS FICTÍCIOS
+// ══════════════════════════════════════════
+const USERS = [
+  {email:'admin@demo.ude.com',       pass:'admin123', nome:'Admin Sistema',  role:'Desenvolvedor', ini:'AS'},
+  {email:'supervisor@demo.ude.com',  pass:'123456',   nome:'Marcos Paulo',   role:'Supervisor',    ini:'MP'},
+  {email:'lider@demo.ude.com',       pass:'123456',   nome:'Rodrigo Lima',   role:'Líder',         ini:'RL'},
+  {email:'suprimentos@demo.ude.com', pass:'123456',   nome:'Priscila Cunha', role:'Suprimentos',   ini:'PC'},
+  {email:'apontador@demo.ude.com',   pass:'123456',   nome:'José Carlos',    role:'Apontador',     ini:'JC'},
+];
+
+const MACHINES = [
+  {id:1, nome:'Retro-05',  tipo:'Retroescavadeira',  placa:'ABC-1234', op:'José Carlos',   forn:'JCB Locações',    ugb:'UGB 01', ativo:true},
+  {id:2, nome:'PC-01',     tipo:'Pá Carregadeira',   placa:'XYZ-5678', op:'Antônio Lima',  forn:'CAT Rental',      ugb:'UGB 01', ativo:true},
+  {id:3, nome:'Pipa-02',   tipo:'Caminhão Pipa',      placa:'DEF-9012', op:'Marcos Paulo',  forn:'Transportes UDE', ugb:'UGB 02', ativo:true},
+  {id:4, nome:'Rolo-01',   tipo:'Rolo Compactador',  placa:'GHI-3456', op:'Carlos Silva',  forn:'Dynapac Loc.',    ugb:'UGB 01', ativo:true},
+  {id:5, nome:'Retro-03',  tipo:'Retroescavadeira',  placa:'JKL-7890', op:'Pedro Alves',   forn:'Case Locadora',   ugb:'UGB 02', ativo:false},
+];
+
+let APONTAMENTOS = [
+  {id:1, data:'2026-05-27', maq:'Retro-05', op:'José Carlos',  ugb:'UGB 01', status:'em_apontamento'},
+  {id:2, data:'2026-05-27', maq:'PC-01',    op:'Antônio Lima', ugb:'UGB 01', status:'liberado_apontador'},
+  {id:3, data:'2026-05-26', maq:'Pipa-02',  op:'Marcos Paulo', ugb:'UGB 02', status:'pendente_lider'},
+  {id:4, data:'2026-05-25', maq:'Rolo-01',  op:'Carlos Silva', ugb:'UGB 01', status:'aprovado'},
+  {id:5, data:'2026-05-24', maq:'Retro-05', op:'José Carlos',  ugb:'UGB 01', status:'aprovado'},
+  {id:6, data:'2026-05-23', maq:'PC-01',    op:'Antônio Lima', ugb:'UGB 01', status:'aprovado'},
+  {id:7, data:'2026-05-22', maq:'Pipa-02',  op:'Marcos Paulo', ugb:'UGB 02', status:'em_apontamento'},
+  {id:8, data:'2026-05-21', maq:'Retro-05', op:'José Carlos',  ugb:'UGB 01', status:'liberado_apontador'},
+];
+
+const CL_ITEMS = [
+  {id:1,  lbl:'Pneus calibrados e sem desgaste'},
+  {id:2,  lbl:'Sinalização Luminosa (Giroflex, Faixa Retrorefletiva, Pisca Alerta, Farol)'},
+  {id:3,  lbl:'Sinalização sonora (buzina e alerta de ré)'},
+  {id:4,  lbl:'Retrovisor'},
+  {id:5,  lbl:'Para-brisa'},
+  {id:6,  lbl:'Direção / Alinhamento'},
+  {id:7,  lbl:'Pedal do acelerador, embreagem e freio'},
+  {id:8,  lbl:'Banco e cinto de segurança'},
+  {id:9,  lbl:'Tampa (motor e tanque de combustível)'},
+  {id:10, lbl:'Vazamentos (Óleo, Gasolina, Entre Outros)'},
+  {id:11, lbl:'EPIs adequados para atividade'},
+  {id:12, lbl:'Crachá de identificação do operador'},
+  {id:13, lbl:'Extintor com carga e prazo de validade conforme'},
+  {id:14, lbl:'Algum indício de problema mecânico ou elétrico?'},
+  {id:15, lbl:'Botão de emergência',                                     only:['ROLO COMPACTADOR']},
+  {id:16, lbl:'Trava de segurança (pedal, lança dianteira e lança traseira)', only:['RETROESCAVADEIRA']},
+  {id:17, lbl:'Sistema de estabilização',                                only:['RETROESCAVADEIRA','MANIPULADOR ARTICULADO']},
+  {id:18, lbl:'Outro (descrever nas observações)'},
+];
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let currentUser = null;
+let viewMode = 'grid';
+let clItemState = {};
+let barChart = null, pieChart = null;
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+function doLogin(){
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const u = USERS.find(x=>x.email===email && x.pass===pass);
+  if(!u){ showErr('E-mail ou senha incorretos.'); return; }
+  currentUser = u;
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-screen').classList.remove('hidden');
+  document.getElementById('sb-av').textContent    = u.ini;
+  document.getElementById('sb-name').textContent  = u.nome;
+  document.getElementById('sb-email').textContent = u.email;
+  document.getElementById('sb-role').textContent  = u.role;
+  document.getElementById('top-av').textContent   = u.ini;
+  document.getElementById('top-name').textContent = u.nome.split(' ')[0];
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('ap-data').value = new Date().toISOString().split('T')[0];
+  nav('dashboard', document.getElementById('nav-dashboard'));
+  renderMaquinarios();
+  renderApontamentos();
+  setTimeout(initCharts,120);
+}
+function showErr(m){ const e=document.getElementById('l-err'); e.textContent=m; e.classList.remove('hidden'); }
+function doLogout(){
+  currentUser=null;
+  document.getElementById('app-screen').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+document.getElementById('l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+const PAGE_LABELS = {
+  dashboard:'Dashboard', maquinarios:'Maquinários', apontamentos:'Apontamentos',
+  'apontamento-new':'Novo Apontamento', cadastros:'Cadastros Gerais', usuarios:'Gerenciar Usuários'
+};
+function nav(pageId, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg = document.getElementById('page-'+pageId);
+  if(pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('bc').textContent = PAGE_LABELS[pageId]||pageId;
+  if(pageId==='dashboard') setTimeout(initCharts,80);
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD CHARTS
+// ══════════════════════════════════════════
+function initCharts(){
+  Chart.defaults.color='#b0b0b0';
+  const bEl=document.getElementById('chart-bar');
+  const pEl=document.getElementById('chart-pie');
+  if(!bEl||!pEl) return;
+  if(barChart){ barChart.destroy(); barChart=null; }
+  if(pieChart){ pieChart.destroy(); pieChart=null; }
+
+  barChart = new Chart(bEl,{
+    type:'bar',
+    data:{
+      labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+      datasets:[{label:'Apontamentos',data:[3,5,2,7,4,1,0],
+        backgroundColor:'rgba(192,72,72,.65)',borderColor:'#C04848',borderWidth:1,borderRadius:5}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.04)'}},y:{grid:{color:'rgba(255,255,255,.04)'},beginAtZero:true}}}
+  });
+
+  const counts = {
+    'Em Edição':      APONTAMENTOS.filter(a=>a.status==='em_apontamento').length,
+    'Aguard.Sup':     APONTAMENTOS.filter(a=>a.status==='liberado_apontador').length,
+    'Pend.Líder':     APONTAMENTOS.filter(a=>a.status==='pendente_lider').length,
+    'Aprovado':       APONTAMENTOS.filter(a=>a.status==='aprovado').length,
+  };
+  pieChart = new Chart(pEl,{
+    type:'doughnut',
+    data:{
+      labels:Object.keys(counts),
+      datasets:[{data:Object.values(counts),
+        backgroundColor:['rgba(150,150,150,.7)','rgba(33,150,243,.7)','rgba(217,164,65,.7)','rgba(76,175,80,.7)'],
+        borderColor:['#969696','#2196f3','#D9A441','#4caf50'],borderWidth:1}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:'#b0b0b0',boxWidth:11,padding:9,font:{size:11}}}}}
+  });
+
+  // pending KPI
+  const pend = APONTAMENTOS.filter(a=>['liberado_apontador','pendente_lider'].includes(a.status)).length;
+  document.getElementById('kpi-pend').textContent = pend;
+
+  // recent table
+  const tb = document.getElementById('dash-recent');
+  tb.innerHTML = APONTAMENTOS.slice(0,5).map(a=>`
+    <tr>
+      <td style="color:var(--muted);font-size:.72rem;font-family:monospace">#${String(a.id).padStart(3,'0')}</td>
+      <td style="color:var(--dim)">${fmtDate(a.data)}</td>
+      <td><b>${a.maq}</b></td>
+      <td>${a.op}</td>
+      <td>${sChip(a.status)}</td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════
+// MAQUINÁRIOS
+// ══════════════════════════════════════════
+function renderMaquinarios(){
+  const ativos   = MACHINES.filter(m=>m.ativo);
+  const inativos = MACHINES.filter(m=>!m.ativo);
+  const cont = document.getElementById('maq-container');
+
+  if(viewMode==='grid'){
+    let h = '';
+    if(ativos.length){
+      h += `<span class="badge-sec" style="color:var(--green)">Ativos (${ativos.length})</span>`;
+      h += `<div class="maq-grid">${ativos.map(mCard).join('')}</div>`;
+    }
+    if(inativos.length){
+      h += `<span class="badge-sec" style="color:var(--muted);margin-top:18px">Inativos (${inativos.length})</span>`;
+      h += `<div class="maq-grid" style="opacity:.55">${inativos.map(mCard).join('')}</div>`;
+    }
+    cont.innerHTML = h;
+  } else {
+    cont.innerHTML = `<div class="tw"><table>
+      <thead><tr><th>Nome</th><th>Tipo</th><th>Placa</th><th>Operador</th><th>Fornecedor</th><th>UGB</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead>
+      <tbody>${MACHINES.map(m=>`
+        <tr style="opacity:${m.ativo?1:.55}">
+          <td><b>${m.nome}</b></td><td style="color:var(--dim)">${m.tipo}</td>
+          <td style="font-family:monospace;font-size:.72rem">${m.placa}</td>
+          <td>${m.op}</td><td style="color:var(--dim)">${m.forn}</td>
+          <td style="color:var(--dim)">${m.ugb}</td>
+          <td>${m.ativo?'<span class="chip c-success">Ativo</span>':'<span class="chip c-default">Inativo</span>'}</td>
+          <td style="text-align:right">
+            <button class="btn-icon" style="color:var(--gold)" onclick="openCL(${m.id})" title="Checklist">
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+            </button>
+          </td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+  }
+}
+
+function mCard(m){
+  const icon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:44px;height:44px;opacity:.12"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.28L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 3.76 2.09 7.07 5.22 8.78L6 22h5V2.05z"/></svg>`;
+  return `<div class="mcard">
+    <div class="mthumb">${icon}
+      <div class="mstatus"><span class="chip ${m.ativo?'c-success':'c-default'}" style="font-size:.62rem">${m.ativo?'Ativo':'Inativo'}</span></div>
+      <div class="mact">
+        <button class="mact-btn chk" onclick="openCL(${m.id})" title="Checklist de Segurança">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+        </button>
+        <button class="mact-btn" onclick="toast('Edição disponível no sistema real','info')" title="Editar">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="mact-btn del" onclick="toast('Exclusão desabilitada na demo','info')" title="Excluir">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+      <div class="mplate">${m.placa}</div>
+    </div>
+    <div class="mbody">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+        <div class="mname">${m.nome}</div>
+        <span class="mtype">${m.tipo}</span>
+      </div>
+      <div class="minfo">
+        <div class="mrow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>${m.op}</div>
+        <div class="mrow" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--muted)"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>${m.forn}</div>
+        <div class="mrow" style="color:var(--muted)"><svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--muted)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>${m.ugb}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleView(){
+  viewMode = viewMode==='grid'?'list':'grid';
+  document.getElementById('view-btn').innerHTML = viewMode==='grid'
+    ? `<svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zM3 19h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zm5 0h4v-4h-4v4zm0-14v4h4V5h-4z"/></svg>Lista`
+    : `<svg viewBox="0 0 24 24" fill="currentColor" style="width:13px;height:13px"><path d="M3 9h4V5H3v4zm0 5h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zM8 9h4V5H8v4zm5-4v4h4V5h-4zm5 9h4v-4h-4v4zM3 19h4v-4H3v4zm5 0h4v-4H8v4zm5 0h4v-4h-4v4zm5 0h4v-4h-4v4zm0-14v4h4V5h-4z"/></svg>Grade`;
+  renderMaquinarios();
+}
+
+// ══════════════════════════════════════════
+// APONTAMENTOS
+// ══════════════════════════════════════════
+function renderApontamentos(){
+  const fStatus = document.getElementById('f-status')?.value||'';
+  const fMaq    = document.getElementById('f-maq')?.value||'';
+  let data = APONTAMENTOS;
+  if(fStatus) data = data.filter(a=>a.status===fStatus);
+  if(fMaq)    data = data.filter(a=>a.maq===fMaq);
+  const tb = document.getElementById('ap-tbody');
+  tb.innerHTML = data.length ? data.map(a=>`
+    <tr>
+      <td style="color:var(--muted);font-size:.72rem;font-family:monospace">#${String(a.id).padStart(3,'0')}</td>
+      <td style="color:var(--dim)">${fmtDate(a.data)}</td>
+      <td><b>${a.maq}</b></td><td>${a.op}</td>
+      <td style="color:var(--dim);font-size:.78rem">${a.ugb}</td>
+      <td>${sChip(a.status)}</td>
+      <td style="text-align:right">${apActions(a)}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">Nenhum apontamento encontrado</td></tr>`;
+}
+
+function apActions(a){
+  const role = currentUser?.role||'';
+  let h = `<button class="btn btn-ghost btn-sm" onclick="toast('Detalhes completos no sistema real','info')">Ver</button> `;
+  if(role==='Apontador'    && a.status==='em_apontamento')   h+=`<button class="btn btn-primary btn-sm" onclick="setStatus(${a.id},'liberado_apontador')">Liberar</button> `;
+  if(role==='Supervisor'   && a.status==='liberado_apontador') h+=`<button class="btn btn-primary btn-sm" onclick="setStatus(${a.id},'pendente_lider')">Aprovar</button> `;
+  if(role==='Líder'        && a.status==='pendente_lider')   h+=`<button class="btn btn-primary btn-sm" onclick="setStatus(${a.id},'aprovado')">Aprovar</button> `;
+  if(role==='Suprimentos'  && a.status==='aprovado')         h+=`<button class="btn btn-primary btn-sm" onclick="toast('Alocado na Extranet','ok')">Alocar</button> `;
+  return h;
+}
+
+function setStatus(id, st){
+  const a = APONTAMENTOS.find(x=>x.id===id);
+  if(a){ a.status=st; renderApontamentos(); toast('Status atualizado com sucesso','ok'); }
+}
+
+// ══════════════════════════════════════════
+// CHECKLIST
+// ══════════════════════════════════════════
+function openCL(machineId){
+  const m = MACHINES.find(x=>x.id===machineId);
+  document.getElementById('cl-sub').textContent = `FORM 140-2/03${m?' · '+m.nome:''}`;
+  document.getElementById('cl-dt').value  = new Date().toISOString().split('T')[0];
+  document.getElementById('cl-op').value  = m?.op||'';
+  document.getElementById('cl-emp').value = '';
+  document.getElementById('cl-cha').value = m?.placa||'';
+  document.getElementById('cl-obs').value = '';
+  document.getElementById('cl-err').classList.add('hidden');
+  // auto-map tipo
+  const MAP = {'Retroescavadeira':'RETROESCAVADEIRA','Rolo Compactador':'ROLO COMPACTADOR',
+    'Escavadeira Hidráulica':'ESCAVADEIRA HIDRÁULICA'};
+  document.getElementById('cl-tipo').value = (m && MAP[m.tipo])||'';
+  clItemState = {};
+  CL_ITEMS.forEach(i=>clItemState[i.id]=null);
+  renderCLItems();
+  document.getElementById('cl-overlay').classList.remove('hidden');
+  document.body.style.overflow='hidden';
+}
+function closeCL(){
+  document.getElementById('cl-overlay').classList.add('hidden');
+  document.body.style.overflow='';
+}
+function visibleCLItems(){
+  const t = document.getElementById('cl-tipo').value;
+  return CL_ITEMS.filter(i=>!i.only||i.only.includes(t));
+}
+function renderCLItems(){
+  const items = visibleCLItems();
+  const answered = items.filter(i=>clItemState[i.id]!==null).length;
+  const nc = items.filter(i=>clItemState[i.id]==='NC').length;
+  document.getElementById('cl-prog').innerHTML = `${answered}/${items.length} respondidos${nc>0?' · <b style="color:var(--red-light)">${nc} NC</b>':''}`;
+  document.getElementById('cl-tbody').innerHTML = items.map(item=>{
+    const s = clItemState[item.id];
+    return `<tr class="${s==='NC'?'row-nc':s==='C'?'row-c':''}">
+      <td style="color:var(--muted);font-family:monospace;font-size:.68rem">${String(item.id).padStart(2,'0')}</td>
+      <td>${item.lbl}</td>
+      <td><div class="sbtns">
+        ${['C','NC','NA'].map(x=>`<button class="sbtn${s===x?' a'+x:''}" onclick="setCLStatus(${item.id},'${x}')">${x}</button>`).join('')}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function setCLStatus(id, s){
+  clItemState[id] = clItemState[id]===s ? null : s;
+  renderCLItems();
+}
+function saveCL(){
+  const op  = document.getElementById('cl-op').value.trim();
+  const emp = document.getElementById('cl-emp').value.trim();
+  const tp  = document.getElementById('cl-tipo').value;
+  const errEl = document.getElementById('cl-err');
+  if(!op)  { errEl.textContent='Informe o nome do operador.';errEl.classList.remove('hidden');return; }
+  if(!emp) { errEl.textContent='Informe a empresa.';errEl.classList.remove('hidden');return; }
+  if(!tp)  { errEl.textContent='Selecione o tipo de equipamento.';errEl.classList.remove('hidden');return; }
+  const pend = visibleCLItems().filter(i=>clItemState[i.id]===null).length;
+  if(pend){ errEl.textContent=`Responda todos os itens (${pend} pendente${pend>1?'s':''}).`;errEl.classList.remove('hidden');return; }
+  errEl.classList.add('hidden');
+  const btn = document.getElementById('cl-save');
+  btn.textContent='Salvando...'; btn.disabled=true;
+  setTimeout(()=>{
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Salvar Checklist';
+    btn.disabled=false;
+    closeCL();
+    toast('Checklist salvo com sucesso!','ok');
+  },700);
+}
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function fmtDate(iso){
+  const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`;
+}
+function sChip(status){
+  const MAP={
+    em_apontamento:     ['c-default','Em Edição'],
+    liberado_apontador: ['c-info','Aguard. Supervisor'],
+    pendente_supervisor:['c-warn','Pend. Supervisor'],
+    pendente_lider:     ['c-warn','Pendente Líder'],
+    aprovado:           ['c-success','Aprovado'],
+  };
+  const [c,l]=MAP[status]||['c-default',status];
+  return `<span class="chip ${c}">${l}</span>`;
+}
+let toastTimer;
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>
